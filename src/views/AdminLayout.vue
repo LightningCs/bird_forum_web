@@ -54,6 +54,11 @@
         <el-menu-item index="/admin/reports">
           <el-icon><Warning /></el-icon>
           <span>举报审核</span>
+        </el-menu-item>        
+        
+        <el-menu-item index="/admin/notices">
+          <el-icon><Message /></el-icon>
+          <span>通知管理</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -84,7 +89,7 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { DataLine, User, Document, ChatLineRound, Warning, Management, List, Ticket } from '@element-plus/icons-vue'
+import { DataLine, User, Document, ChatLineRound, Warning, Management, List, Ticket, Message } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()

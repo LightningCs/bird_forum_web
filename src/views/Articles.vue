@@ -91,37 +91,37 @@
         <el-table-column label="文章信息" min-width="300">
           <template #default="scope">
             <div class="article-info-col">
-              <img :src="scope.row.cover || 'https://via.placeholder.com/80x50?text=无封面'" class="article-cover" />
+              <img :src="scope.row.image || 'https://via.placeholder.com/80x50?text=无封面'" class="article-cover" />
               <div class="article-text">
                 <div class="article-title">{{ scope.row.title }}</div>
-                <div class="article-category">
-                  <el-tag size="small" type="info">{{ scope.row.category }}</el-tag>
+                <div class="article-category" v-for="category in scope.row.categories">
+                  <el-tag size="small" type="info">{{ category.name }}</el-tag>
                 </div>
               </div>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column prop="authorName" label="发布者" min-width="120" align="center" />
+        <el-table-column prop="publisherName" label="发布者" min-width="120" align="center" />
         
         <!-- 文章状态 -->
         <el-table-column label="文章状态" width="100" align="center">
           <template #default="scope">
-            <el-tag v-if="scope.row.status === 0" type="info">草稿</el-tag>
-            <el-tag v-else-if="scope.row.status === 1" type="success">已发布</el-tag>
-            <el-tag v-else-if="scope.row.status === 2" type="warning">不可见</el-tag>
+            <el-tag v-if="scope.row.status === '草稿'" type="info">草稿</el-tag>
+            <el-tag v-else-if="scope.row.status === '已发布'" type="success">已发布</el-tag>
+            <el-tag v-else-if="scope.row.status === '不可见'" type="warning">不可见</el-tag>
           </template>
         </el-table-column>
 
         <!-- 违规状态 -->
         <el-table-column label="违规标记" width="100" align="center">
           <template #default="scope">
-            <el-tag v-if="scope.row.isViolate === 0" type="success" effect="plain">正常</el-tag>
+            <el-tag v-if="scope.row.isIllegal === 0" type="success" effect="plain">正常</el-tag>
             <el-tag v-else type="danger" effect="dark">违规</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="publishTime" label="发布时间" width="160" align="center" sortable />
+        <el-table-column prop="createTime" label="发布时间" width="160" align="center" sortable />
 
         <!-- 操作列 -->
         <el-table-column label="操作" width="220" align="center" fixed="right">
@@ -161,6 +161,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { Search, Refresh, Hide, Delete, View } from '@element-plus/icons-vue'
+import { getArticleList } from '@/api/index'
 
 const router = useRouter()
 
@@ -195,24 +196,32 @@ const tableData = ref<any[]>([])
 // ================== 方法与逻辑 ==================
 
 // 模拟从后台获取数据
-const fetchTableData = () => {
+const fetchTableData = async () => {
   loading.value = true
   console.log('搜索参数：', { ...searchForm, page: pagination.currentPage, size: pagination.pageSize })
+
+  tableData.value = await getArticleList({
+    'pageNo': 0,
+    'pageSize': 1,
+    'pageNum': 10
+  })
+  loading.value = false
+  pagination.total = tableData.value.length
   
-  setTimeout(() => {
-    // 模拟后端返回的数据
-    tableData.value =[
-      { id: 101, title: '基于深度学习的图像识别研究与实践', cover: 'https://via.placeholder.com/80x50/1a73e8/ffffff?text=AI', category: '人工智能', authorName: '张三', status: 1, isViolate: 0, publishTime: '2026-03-15 10:20:00' },
-      { id: 102, title: '论现代经济体系下的通货膨胀趋势', cover: null, category: '经济学', authorName: '李四', status: 1, isViolate: 0, publishTime: '2026-03-14 09:15:30' },
-      { id: 103, title: '大学生心理健康问卷调查数据分析', cover: 'https://via.placeholder.com/80x50/ff9800/ffffff?text=Data', category: '心理学', authorName: '王五', status: 0, isViolate: 0, publishTime: '2026-03-12 14:05:12' },
-      { id: 104, title: '违规测试文章：包含不当言论的文本提取', cover: 'https://via.placeholder.com/80x50/f56c6c/ffffff?text=Ban', category: '计算机科学', authorName: '黑客小明', status: 2, isViolate: 1, publishTime: '2026-03-10 16:30:45' },
-    ]
-    loading.value = false
-  }, 600)
+  // setTimeout(() => {
+  //   // 模拟后端返回的数据
+  //   tableData.value =[
+  //     { id: 101, title: '基于深度学习的图像识别研究与实践', cover: 'https://via.placeholder.com/80x50/1a73e8/ffffff?text=AI', category: '人工智能', authorName: '张三', status: 1, isViolate: 0, publishTime: '2026-03-15 10:20:00' },
+  //     { id: 102, title: '论现代经济体系下的通货膨胀趋势', cover: null, category: '经济学', authorName: '李四', status: 1, isViolate: 0, publishTime: '2026-03-14 09:15:30' },
+  //     { id: 103, title: '大学生心理健康问卷调查数据分析', cover: 'https://via.placeholder.com/80x50/ff9800/ffffff?text=Data', category: '心理学', authorName: '王五', status: 0, isViolate: 0, publishTime: '2026-03-12 14:05:12' },
+  //     { id: 104, title: '违规测试文章：包含不当言论的文本提取', cover: 'https://via.placeholder.com/80x50/f56c6c/ffffff?text=Ban', category: '计算机科学', authorName: '黑客小明', status: 2, isViolate: 1, publishTime: '2026-03-10 16:30:45' },
+  //   ]
+  //   loading.value = false
+  // }, 600)
 }
 
 // 组件挂载时拉取一次数据
-onMounted(() => {
+onMounted(async () => {
   fetchTableData()
 })
 

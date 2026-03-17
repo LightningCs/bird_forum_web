@@ -1,13 +1,10 @@
 import request from '@/utils/request'
 
-export function getChatMessages(sourceId, targetId) {
+export function getChatMessages(req) {
     return request({
         url: '/message/list',
         method: 'get',
-        params: {
-            sourceId,
-            targetId
-        }
+        params: req
     })
 }
 

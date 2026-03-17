@@ -9,7 +9,7 @@ export function getUserById(id) {
 
 export function getFriendList(id, isFans) {
   return request({
-    url: '/follow?id=' + id + '&isFans=' + isFans,
+    url: '/follow?userId=' + id + '&isFans=' + isFans,
     method: 'get'
   })
 }

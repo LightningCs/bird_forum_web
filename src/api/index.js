@@ -4,7 +4,9 @@ import { getCommentList, addComment } from '@/api/comment'
 import { likeCollection, commentLike, commentDislike } from '@/api/likeCollect'
 import { getUserById, getFriendList } from '@/api/user'
 import { getChatMessages, saveMessage } from '@/api/message'
+import { submitReport, getReportReasonList } from '@/api/report'
 
 export { getArticleList, getHotArticleList, getCategoryList, saveArticle, getArticleById, getCommentList, likeCollection, commentLike, commentDislike, 
-    addComment, getUserById, getUserPublishArticleList, getUserCollectArticleList, getFriendList, getChatMessages, saveMessage
+    addComment, getUserById, getUserPublishArticleList, getUserCollectArticleList, getFriendList, getChatMessages, saveMessage,
+    submitReport, getReportReasonList
  }

@@ -2,12 +2,12 @@
   <div class="history-container">
     <header class="header">
       <div class="logo">
-        <span class="logo-icon">🎓</span>
-        <span class="logo-text">毕业论文系统</span>
+        <span class="logo-text">小鸟论坛</span>
       </div>
       
       <div class="header-right">
         <el-button type="success" @click="goToSubmit">+ 发布文章</el-button>
+        <el-button :icon="Bell" @click="router.push('/notifications')">通知</el-button>
         <el-button @click="openChat">聊天</el-button>
         <el-button @click="goToFriends" v-if="isLoggedIn">好友</el-button>
       </div>
@@ -89,6 +89,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Bell } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
@@ -101,7 +102,7 @@ const historyList = ref([
     id: 1,
     title: '基于深度学习的图像识别研究与实践',
     summary: '本文提出了一种新的卷积神经网络结构，详细探讨了CNN的核心架构，用于提升图像分类准确率。',
-    category: '计算机科学',
+    category: '深度学习',
     tagType: 'primary',
     publishTime: '2025-04-01',
     likes: 156,
@@ -110,9 +111,9 @@ const historyList = ref([
   },
   {
     id: 2,
-    title: '基于大数据的用户行为分析与精准营销系统',
-    summary: '本文通过收集海量用户的交互行为数据，构建了多维度的用户画像，探讨了推荐算法在实际商业场景中的优化方向。',
-    category: '软件工程',
+    title: '理解高并发：原理、场景和解决方案',
+    summary: '本文通过具体项目场景，详细介绍了高并发场景下的解决方案，如分布式锁、缓存、数据库优化、消息队列等。',
+    category: 'Java',
     tagType: 'success',
     publishTime: '2025-03-15',
     likes: 89,
@@ -121,9 +122,9 @@ const historyList = ref([
   },
   {
     id: 3,
-    title: '新型纳米材料在新能源电池中的应用探索',
-    summary: '研究了特定结构的纳米材料对提升锂离子电池能量密度和循环寿命的显著作用，并进行了多组对比实验分析。',
-    category: '材料科学',
+    title: 'MySQL 优化与性能调优',
+    summary: '本文详细介绍了MySQL的性能优化方法，包括索引优化、查询优化、存储引擎优化等。',
+    category: 'MySQL',
     tagType: 'warning',
     publishTime: '2025-02-28',
     likes: 234,

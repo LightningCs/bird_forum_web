@@ -4,7 +4,7 @@
     <header class="header">
       <div class="header-left">
         <el-button :icon="ArrowLeft" circle @click="goBack"></el-button>
-        <span class="page-title">发布新论文 / 文章</span>
+        <span class="page-title">发布文章</span>
       </div>
       <div class="header-right">
         <el-button @click="saveDraft">保存草稿</el-button>
@@ -34,7 +34,7 @@
 
           <div class="flex-row">
             <!-- 2. 分类 -->
-            <el-form-item label="所属学科/分类 (可多选)" prop="categories" style="flex: 1;">
+            <el-form-item label="所属分类 (可多选)" prop="categories" style="flex: 1;">
               <el-select 
                 v-model="articleForm.categories" 
                 multiple 
@@ -273,7 +273,7 @@ const goBack = () => {
 
 .header {
   display: flex;
-  justify-context: space-between;
+  justify-content: space-between;
   align-items: center;
   padding: 0 30px;
   height: 60px;
@@ -329,7 +329,7 @@ const goBack = () => {
   height: 200px;
   display: flex;
   flex-direction: column;
-  justify-context: center;
+  justify-content: center;
   align-items: center;
   background-color: #fafafa;
   overflow: hidden;
@@ -363,7 +363,7 @@ const goBack = () => {
   background: rgba(0,0,0,0.5);
   color: white;
   display: flex;
-  justify-context: center;
+  justify-content: center;
   align-items: center;
   font-size: 16px;
   opacity: 0;

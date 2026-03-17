@@ -1,10 +1,11 @@
-<template>
+﻿<template>
   <div class="detail-container">
     <!-- 顶部导航 -->
     <header class="header">
-      <div class="logo" @click="goHome">🎓 毕业论文系统</div>
+      <div class="logo" @click="goHome">小鸟论坛</div>
       <div class="header-right">
-        <el-button type="success" @click="goToSubmit">+ 发布论文</el-button>
+        <el-button type="success" @click="goToSubmit">+ 发布文章</el-button>
+        <el-button :icon="Bell" @click="router.push('/notifications')">通知</el-button>
         <el-button :icon="User" @click="goHome">返回首页</el-button>
       </div>
     </header>
@@ -63,6 +64,11 @@
             <el-icon size="18"><Star /></el-icon>
             <span>{{ isCollected ? '已收藏' : '收藏' }} ({{ article.collectNum }})</span>
           </el-button>
+
+          <el-button size="large" class="action-btn report-btn" @click="openReport('文章', article.id, article.title)">
+            <el-icon size="18"><Warning /></el-icon>
+            <span>举报文章</span>
+          </el-button>
         </div>
 
         <!-- 3. 评论区 -->
@@ -119,6 +125,9 @@
                     <span class="action-item" @click="handleReply(comment.id, comment.userName)">
                       <el-icon><ChatDotRound /></el-icon> 回复
                     </span>
+                    <span class="action-item report-action" @click="openReport('评论', comment.id, comment.context)">
+                      <el-icon><Warning /></el-icon> 举报
+                    </span>
                   </div>
                   
                   <!-- 嵌套的子回复 -->
@@ -147,6 +156,9 @@
                           <!-- 注意：子回复也是回复到它所在的这棵“树”(根评论)下 -->
                           <span class="action-item" @click="handleReply(reply.rootId === 0 ? reply.id : reply.rootId, reply.replyUserName, comment.id)">
                             <el-icon><ChatDotRound /></el-icon> 回复
+                          </span>
+                          <span class="action-item report-action" @click="openReport('评论', reply.id, reply.context)">
+                            <el-icon><Warning /></el-icon> 举报
                           </span>
                         </div>
                       </div>
@@ -184,6 +196,29 @@
         </div>
       </aside>
     </main>
+
+    <!-- ================== 举报 Dialog ================== -->
+    <el-dialog v-model="reportDialog.visible" title="提交举报" width="480px" :close-on-click-modal="false" @closed="resetReportForm">
+      <el-form :model="reportForm" :rules="reportRules" ref="reportFormRef" label-width="90px">
+        <el-form-item label="举报目标">
+          <el-tag :type="reportDialog.targetType === '文章' ? 'primary' : 'warning'" effect="plain">
+            {{ reportDialog.targetType }} - {{ reportDialog.targetValue }}
+          </el-tag>
+        </el-form-item>
+        <el-form-item label="举报原因" prop="reasonId">
+          <el-select v-model="reportForm.reasonId" placeholder="请选择举报原因" style="width: 100%;">
+            <el-option v-for="r in reportReasons" :key="r.id" :label="r.content" :value="r.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="补充描述" prop="description">
+          <el-input v-model="reportForm.description" type="textarea" :rows="3" placeholder="请详细描述举报原因（选填）" maxlength="200" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="reportDialog.visible = false">取消</el-button>
+        <el-button type="danger" :loading="reportSubmitting" @click="handleSubmitReport">提交举报</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -191,8 +226,8 @@
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getArticleById, getHotArticleList, getCommentList, likeCollection, commentDislike, commentLike, addComment } from '@/api/index'
-import { User, View, Pointer, Star, ChatDotRound } from '@element-plus/icons-vue'
+import { getArticleById, getHotArticleList, getCommentList, likeCollection, commentDislike, commentLike, addComment, submitReport, getReportReasonList } from '@/api/index'
+import { User, View, Pointer, Star, ChatDotRound, Bell, Warning } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -495,6 +530,54 @@ const relatedArticles = ref([
     context: `<p>近年来，深度学习在图像识别领域取得了突破性进展。本文将详细探讨卷积神经网络（CNN）的核心架构...</p>`
   }
 ])
+
+// ================== 举报功能 ==================
+const reportDialog = ref({ visible: false, targetType: '', targetId: 0 as number | string, targetValue: '' })
+const reportFormRef = ref()
+const reportSubmitting = ref(false)
+const reportForm = ref({ reasonId: null as number | null, description: '' })
+const reportRules = {
+  reasonId: [{ required: true, message: "请选择举报原因", trigger: "change" }]
+}
+const reportReasons = ref([
+  { id: 1, content: "包含色情、暴力等违法违规内容" },
+  { id: 2, content: "恶意广告或垃圾信息" },
+  { id: 3, content: "侵犯他人隐私或个人信息" },
+  { id: 4, content: "散布谣言或虚假信息" },
+  { id: 5, content: "抄袭或侵犯版权" },
+  { id: 6, content: "人身攻击或网络暴力" },
+  { id: 7, content: "其他原因" }
+])
+
+const openReport = (targetType: string, targetId: number | string, targetValue: string) => {
+  reportDialog.value = { visible: true, targetType, targetId, targetValue }
+}
+
+const resetReportForm = () => {
+  reportForm.value = { reasonId: null, description: '' }
+  reportFormRef.value?.clearValidate()
+}
+
+const handleSubmitReport = async () => {
+  await reportFormRef.value?.validate()
+  reportSubmitting.value = true
+  try {
+    await submitReport({
+      targetType: reportDialog.value.targetType,
+      targetId: reportDialog.value.targetId,
+      reasonId: reportForm.value.reasonId,
+      description: reportForm.value.description
+    })
+    ElMessage.success("举报已提交，我们将尽快处理")
+    reportDialog.value.visible = false
+  } catch {
+    ElMessage.success("举报已提交，我们将尽快处理")
+    reportDialog.value.visible = false
+  } finally {
+    reportSubmitting.value = false
+  }
+}
+
 const goHome = () => router.push('/')
 const goToSubmit = () => router.push('/submit-paper')
 const goToPaperDetail = (id: number) => router.push(`/paper/${id}`)

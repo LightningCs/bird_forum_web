@@ -7,7 +7,7 @@
       <div class="search-box">
         <el-input
           v-model="searchInputValue"
-          placeholder="搜索论文或作者"
+          placeholder="搜索文章或作者"
           :prefix-icon="Search"
           @keyup.enter="handleSearch"
           style="width: 400px; margin-right: 20px;"
@@ -17,7 +17,8 @@
       </div>
 
       <div class="header-right">
-        <el-button type="success" @click="goToSubmit">+ 发布论文</el-button>
+        <el-button type="success" @click="goToSubmit">+ 发布文章</el-button>
+        <el-button :icon="Bell" @click="router.push('/notifications')">通知</el-button>
         <!-- 未登录状态：显示登录/注册按钮 -->
         <el-button v-if="!isLoggedIn" :icon="User" @click="login">登录 / 注册</el-button>
 
@@ -90,7 +91,7 @@
                 <span>{{ paper.likeNum }} 赞</span>
               </div>
               <div class="paper-image" v-if="paper.image">
-                <img :src="paper.image" alt="论文封面" />
+                <img :src="paper.image" alt="文章封面" />
               </div>
               <div class="categories">
                 <el-tag v-for="tag in paper.categories" :key="tag" effect="dark" class="category-tag">
@@ -119,7 +120,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getArticleList, getUserById } from '@/api/index'
-import { Search, User, Lock, Clock, SwitchButton } from '@element-plus/icons-vue'
+import { Search, User, Lock, Clock, SwitchButton, Bell } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -136,7 +137,7 @@ const searchResults = ref([])
 const allMockPapers =[
   {
     id: 1, title: '基于深度学习的图像识别研究', author: '张三', avatar: 'https://via.placeholder.com/40x40?text=Z',
-    summary: '本文提出了一种新的卷积神经网络结构，用于提升图像分类准确率。', category: '计算机科学', date: '2025-04-01', views: 892, likes: 156, status: '已审核', image: 'https://via.placeholder.com/400x200?text=论文封面'
+    summary: '本文提出了一种新的卷积神经网络结构，用于提升图像分类准确率。', category: '计算机科学', date: '2025-04-01', views: 892, likes: 156, status: '已审核', image: 'https://via.placeholder.com/400x200?text=文章封面'
   },
   {
     id: 2, title: '智能交通系统的设计与实现', author: '李四', avatar: 'https://via.placeholder.com/40x40?text=L',
@@ -214,7 +215,7 @@ const goHome = () => router.push('/')
 const goToSubmit = () => router.push('/submit-paper')
 const login = () => router.push('/login')
 const goToPaperDetail = (id: number) => {
-  console.log(`跳转到论文详情页，ID: ${id}`)
+  console.log(`跳转到文章详情页，ID: ${id}`)
   router.push(`/paper/${id}`)
 }
 
@@ -339,7 +340,7 @@ watch(() => route.query, () => {
   font-size: 16px;
 }
 
-/* 论文列表样式 (复用首页核心样式) */
+/* 文章列表样式 (复用首页核心样式) */
 .paper-item {
   border-bottom: 1px solid #eee;
   padding: 20px 0;

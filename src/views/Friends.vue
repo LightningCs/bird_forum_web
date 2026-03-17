@@ -2,7 +2,7 @@
   <div class="friends-page-container">
     <!-- 顶部导航 -->
     <header class="header">
-      <div class="logo" @click="goHome">🎓 毕业论文系统</div>
+      <div class="logo" @click="goHome">小鸟论坛</div>
       <div class="header-right">
         <el-button :icon="ArrowLeft" @click="goHome">返回首页</el-button>
       </div>

@@ -17,6 +17,7 @@
 
       <div class="header-right">
         <el-button type="success" @click="goToSubmit">+ 发布文章</el-button>
+        <el-button :icon="Bell" @click="router.push('/notifications')">通知</el-button>
         <el-button :icon="ChatLineRound" @click="openChat">聊天</el-button>
         
         <!-- 新增：好友按钮 -->
@@ -162,7 +163,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getArticleList, getHotArticleList, getCategoryList, getUserById } from '@/api/index'
-import { Search, ChatLineRound, UserFilled, User, Lock, Clock, SwitchButton } from '@element-plus/icons-vue'
+import { Search, ChatLineRound, UserFilled, User, Lock, Clock, SwitchButton, Bell } from '@element-plus/icons-vue'
 
 const router = useRouter()
 

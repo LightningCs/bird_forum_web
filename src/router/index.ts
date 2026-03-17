@@ -7,6 +7,7 @@ import Chat from '@/views/Chat.vue'
 import Friends from '@/views/Friends.vue'
 import History from '@/views/History.vue'
 import Home from '@/views/Home.vue'
+import Notifications from '@/views/Notifications.vue'
 import Login from '@/views/Login.vue'
 import Paper from '@/views/Paper.vue'
 import Register from '@/views/Register.vue'
@@ -72,6 +73,11 @@ const routes = [
     component: History
   },
   {
+    path: '/notifications',
+    name: 'Notifications',
+    component: Notifications
+  },
+  {
     path: '/admin/login',
     name: 'AdminLogin',
     component: AdminLogin
@@ -79,6 +85,7 @@ const routes = [
   {
     path: '/admin',
     name: 'Admin',
+    redirect: '/admin/dashboard',
     component: Admin,
     children: [
       {
@@ -120,6 +127,11 @@ const routes = [
         path: 'reports',
         name: 'Reports',
         component: () => import('@/views/Reports.vue')
+      },
+      {
+        path: 'notices',
+        name: 'NoticeManage',
+        component: () => import('@/views/NoticeManage.vue')
       }
     ]
   }

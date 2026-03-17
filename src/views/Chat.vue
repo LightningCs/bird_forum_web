@@ -2,7 +2,7 @@
   <div class="chat-page-container">
     <!-- 顶部导航 (保持系统一致性) -->
     <header class="header">
-      <div class="logo" @click="goHome">🎓 毕业论文系统</div>
+      <div class="logo" @click="goHome">小鸟论坛</div>
       <div class="header-right">
         <el-button :icon="ArrowLeft" @click="goHome">返回首页</el-button>
       </div>
@@ -55,7 +55,7 @@
         <div class="chat-window" v-if="activeFriend">
           <!-- 聊天窗头部 -->
           <header class="chat-header">
-            <span class="chat-title">{{ activeFriend.name }}</span>
+            <span class="chat-title">{{ activeFriend?.username }}</span>
           </header>
 
           <!-- 消息列表区 -->
@@ -64,17 +64,17 @@
               v-for="msg in currentMessages" 
               :key="msg.id" 
               class="message-wrapper"
-              :class="msg.senderId === currentUser.id ? 'is-me' : 'is-friend'"
+              :class="msg.sourceId === currentUser.id ? 'is-me' : 'is-friend'"
             >
-              <div class="message-time" v-if="msg.showTime">{{ msg.time }}</div>
+              <div class="message-time" v-if="msg.showTime">{{ msg.sendTime }}</div>
               <div class="message-content-row">
                 <img 
-                  :src="msg.senderId === currentUser.id ? currentUser.avatar : activeFriend.avatar" 
+                  :src="msg.sourceId === currentUser.id ? currentUser.avatar : activeFriend.avatar" 
                   alt="头像" 
                   class="msg-avatar" 
                 />
                 <div class="msg-bubble">
-                  {{ msg.text }}
+                  {{ msg.content }}
                 </div>
               </div>
             </div>
@@ -119,7 +119,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getFriendList, getChatMessages, saveMessage } from '@/api/index'
+import { getFriendList, getChatMessages, saveMessage, getUserById } from '@/api/index'
 import { ArrowLeft, Search, Picture, Folder, Microphone, ChatDotRound } from '@element-plus/icons-vue'
 
 
@@ -154,23 +154,26 @@ const searchFriend = ref('')
 const inputText = ref('')
 const messageListRef = ref<HTMLElement | null>(null)
 
-onMounted(async () => { 
+onMounted(async () => {
+  currentUser.value = await getUserById(1)
   friends.value = await getFriendList(currentUser.value.id, false)
 })
 
 // 过滤后的好友列表 (支持搜索)
 const filteredFriends = computed(() => {
   if (!searchFriend.value) return friends.value
-  return friends.value.filter(f => f.username.includes(searchFriend.value))
+  return friends.value.filter((f: any) => f.username.includes(searchFriend.value))
 })
 
 // 当前选中的好友对象
-const activeFriend = ref({})
+const activeFriend = computed(() =>
+  friends.value.find((f: any) => f.id === activeFriendId.value) || null
+)
 
 // 当前窗口的消息列表
 const currentMessages = computed(() => {
-  if (!activeFriendId.value) return[]
-  return messagesDict.value[activeFriendId.value] ||[]
+  if (!activeFriendId.value) return []
+  return messagesDict.value[activeFriendId.value] || []
 })
 
 // ================== 交互方法 ==================
@@ -186,19 +189,30 @@ const scrollToBottom = async () => {
 // 选择好友
 const selectFriend = async (id: number) => {
   activeFriendId.value = id
-  
+
   // 清除该好友的未读数
-  const friend = friends.value.find(f => f.id === id)
+  const friend = friends.value.find((f: any) => f.id === id)
   if (friend) friend.unreadCount = 0
 
   // 确保字典里有该好友的数组
   if (!messagesDict.value[id]) {
-    messagesDict.value[id] =[]
+    messagesDict.value[id] = []
   }
 
-  // 获取与该好友的聊天记录
-  activeFriend.value = await getChatMessages(currentUser.value.id, id)
-  
+  // 从接口拉取与该好友的聊天记录
+  try {
+    const res = await getChatMessages({
+      sourceId: currentUser.value.id,
+      targetId: id,
+      pageNo: 1,
+      pageSize: 100
+    })
+    // 接口返回的消息列表赋值到字典
+    messagesDict.value[id] = Array.isArray(res) ? res : (res?.data?.records || res?.data || [])
+  } catch {
+    // 接口不通时保留本地模拟数据
+  }
+
   scrollToBottom()
 }
 
@@ -220,31 +234,30 @@ const sendMessage = () => {
   const now = new Date()
   const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
 
-  // 1. 构建自己的消息
   const myMsg = {
+    id: Date.now(),
+    senderId: currentUser.value.id,
     sourceId: currentUser.value.id,
-    targetId: activeFriendId.value,
+    targetId: friendId,
+    text,
     content: text,
+    time: timeStr,
+    showTime: false
   }
 
-  // 2. 保存数据
-  saveMessage(myMsg)
+  saveMessage({ sourceId: currentUser.value.id, targetId: friendId, content: text })
 
-  // 3. 存入字典
+  if (!messagesDict.value[friendId]) messagesDict.value[friendId] = []
   messagesDict.value[friendId].push(myMsg)
-  
-  // 4. 更新左侧好友列表的最后消息提示
-  const friend = friends.value.find(f => f.id === friendId)
+
+  const friend = friends.value.find((f: any) => f.id === friendId)
   if (friend) {
     friend.lastMessage = text
     friend.lastMessageTime = timeStr
   }
 
-  // 5. 清空输入框并滚动到底部
   inputText.value = ''
   scrollToBottom()
-
-  // 6. 【模拟实时接收功能】触发对方自动回复机器人
   simulateReply(friendId)
 }
 
@@ -270,7 +283,7 @@ const simulateReply = (friendId: number) => {
     messagesDict.value[friendId].push(friendMsg)
 
     // 更新好友列表的最新摘要
-    const friend = friends.value.find(f => f.id === friendId)
+    const friend = friends.value.find((f: any) => f.id === friendId)
     if (friend) {
       friend.lastMessage = randomReply
       friend.lastMessageTime = timeStr

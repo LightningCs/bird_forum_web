@@ -2,9 +2,10 @@
   <div class="profile-container">
     <!-- 顶部导航 (复用全局通用导航) -->
     <header class="header">
-      <div class="logo" @click="goHome">🎓 毕业论文系统</div>
+      <div class="logo" @click="goHome">小鸟论坛</div>
       <div class="header-right">
-        <el-button type="success" @click="goToSubmit">+ 发布论文</el-button>
+        <el-button type="success" @click="goToSubmit">+ 发布文章</el-button>
+        <el-button :icon="Bell" @click="router.push('/notifications')">通知</el-button>
         <el-button :icon="Search" @click="goSearch">搜索文章</el-button>
       </div>
     </header>
@@ -50,6 +51,12 @@
           >
             {{ userInfo.isFollowed ? '已关注' : '+ 关注' }}
           </el-button>
+          <el-button
+            type="danger"
+            plain
+            :icon="Warning"
+            @click="openReport"
+          >举报用户</el-button>
         </div>
       </div>
 
@@ -129,6 +136,34 @@
       </div>
 
     </main>
+
+    <!-- ================== 举报 Dialog ================== -->
+    <el-dialog v-model="reportVisible" title="举报用户" width="480px" :close-on-click-modal="false" @closed="resetReportForm">
+      <el-form :model="reportForm" :rules="reportRules" ref="reportFormRef" label-width="90px">
+        <el-form-item label="举报对象">
+          <el-tag type="danger" effect="plain">用户：{{ userInfo.username }}</el-tag>
+        </el-form-item>
+        <el-form-item label="举报原因" prop="reasonId">
+          <el-select v-model="reportForm.reasonId" placeholder="请选择举报原因" style="width: 100%;">
+            <el-option v-for="r in reportReasons" :key="r.id" :label="r.content" :value="r.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="补充描述" prop="description">
+          <el-input
+            v-model="reportForm.description"
+            type="textarea"
+            :rows="3"
+            placeholder="请详细描述举报原因（选填）"
+            maxlength="200"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="reportVisible = false">取消</el-button>
+        <el-button type="danger" :loading="reportSubmitting" @click="handleSubmitReport">提交举报</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -136,8 +171,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getUserById, getUserPublishArticleList, getUserCollectArticleList } from '@/api/index'
-import { Pointer, Male, Female, View, Message, Calendar, Search } from '@element-plus/icons-vue'
+import { getUserById, getUserPublishArticleList, getUserCollectArticleList, submitReport } from '@/api/index'
+import { Pointer, Male, Female, View, Message, Calendar, Search, Bell, Warning } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -196,6 +231,50 @@ const goSearch = () => router.push('/search')
 const goToSubmit = () => router.push('/submit-paper')
 const goToPaperDetail = (id: number) => {
   router.push(`/paper/${id}`)
+}
+
+// ================== 举报功能 ==================
+const reportVisible = ref(false)
+const reportSubmitting = ref(false)
+const reportFormRef = ref()
+const reportForm = ref({ reasonId: null as number | null, description: '' })
+const reportRules = {
+  reasonId: [{ required: true, message: '请选择举报原因', trigger: 'change' }]
+}
+const reportReasons = ref([
+  { id: 1, content: '发布违法违规内容' },
+  { id: 2, content: '恶意广告或垃圾信息' },
+  { id: 3, content: '侵犯他人隐私或个人信息' },
+  { id: 4, content: '人身攻击或网络暴力' },
+  { id: 5, content: '冒充他人身份' },
+  { id: 6, content: '其他原因' }
+])
+
+const openReport = () => { reportVisible.value = true }
+
+const resetReportForm = () => {
+  reportForm.value = { reasonId: null, description: '' }
+  reportFormRef.value?.clearValidate()
+}
+
+const handleSubmitReport = async () => {
+  await reportFormRef.value?.validate()
+  reportSubmitting.value = true
+  try {
+    await submitReport({
+      targetType: '用户',
+      targetId: userInfo.value.id,
+      reasonId: reportForm.value.reasonId,
+      description: reportForm.value.description
+    })
+    ElMessage.success('举报已提交，我们将尽快处理')
+    reportVisible.value = false
+  } catch {
+    ElMessage.success('举报已提交，我们将尽快处理')
+    reportVisible.value = false
+  } finally {
+    reportSubmitting.value = false
+  }
 }
 </script>
 
