@@ -24,7 +24,7 @@
         <!-- 筛选 Tab -->
         <el-tabs v-model="activeTab" class="notify-tabs">
           <el-tab-pane name="all">
-            <template #label>全部 <el-badge :value="notifications.length" type="info" class="tab-badge" /></template>
+            <template #label>全部 <el-badge :value="notifications.length" type="info" class="tab-badge" :hidden="notifications.length === 0" /></template>
           </el-tab-pane>
           <el-tab-pane name="unread">
             <template #label>未读 <el-badge :value="unreadCount" type="danger" class="tab-badge" :hidden="unreadCount === 0" /></template>
@@ -54,7 +54,7 @@
 
             <div class="notify-body">
               <div class="notify-title">{{ item.title }}</div>
-              <div class="notify-content">{{ item.content }}</div>
+              <div class="notify-content"  v-html="item.content" ></div>
               <div class="notify-time">{{ item.time }}</div>
             </div>
 
@@ -79,7 +79,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Bell, ChatDotRound, Pointer, Warning, InfoFilled, Close } from '@element-plus/icons-vue'
-import { getNoticePage, addNoticeRead } from '@/api/notice'
+import { getNoticePage, addNoticeRead, deleteNotice } from '@/api/notice'
 import { useUserStore } from '@/stores/user.ts'
 
 const router = useRouter()
@@ -151,9 +151,18 @@ watch(activeTab, () => {
 })
 
 const handleClick = (item: Record<string, unknown>) => {
-  item.isRead = true
-  // You may need to call a backend API to mark as read
-  if (item.link) router.push(item.link as string)
+  if (!item.isRead) {
+    item.isRead = true // Mark as read in UI immediately  
+    addNoticeRead({
+      noticeId: item.id,
+      userId: userStore.userInfo?.id || 0,
+      isRead: '是'
+    })
+  }
+
+  notifications.value.sort((a, b) => {
+    return a.isRead ? 1 : -1
+  })
 }
 
 const markAllRead = () => {
@@ -172,11 +181,7 @@ const markAllRead = () => {
 const deleteOne = (id: number) => {
   // You may need to call a backend API to delete
   notifications.value = notifications.value.filter(n => n.id !== id)
-  addNoticeRead({
-    noticeId: id,
-    userId: userStore.userInfo?.id || 0,
-    isRead: '是'
-  })
+  deleteNotice(id)
 }
 
 const clearAll = () => {

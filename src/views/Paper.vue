@@ -87,7 +87,7 @@
               
               <el-input 
                 ref="commentInputRef"
-                v-model="newComment" 
+                v-model="replyState.context" 
                 type="textarea" 
                 :rows="3" 
                 :placeholder="replyState.active ? `回复 @${replyState.targetName}...` : '写下你的评论或疑问...'" 
@@ -122,7 +122,7 @@
                     >
                       <el-icon><Pointer /></el-icon> {{ comment.likeNum > 0 ? comment.likeNum : '点赞' }}
                     </span>
-                    <span class="action-item" @click="handleReply(comment.id, comment.userName)">
+                    <span class="action-item" @click="handleReply(comment.id, comment.userName, comment.parentId, comment.commentUserId)">
                       <el-icon><ChatDotRound /></el-icon> 回复
                     </span>
                     <span class="action-item report-action" @click="openReport('评论', comment.id, comment.context)">
@@ -154,7 +154,7 @@
                             <el-icon><Pointer /></el-icon> {{ reply.likeNum > 0 ? reply.likeNum : '点赞' }}
                           </span>
                           <!-- 注意：子回复也是回复到它所在的这棵“树”(根评论)下 -->
-                          <span class="action-item" @click="handleReply(reply.rootId === 0 ? reply.id : reply.rootId, reply.replyUserName, comment.id)">
+                          <span class="action-item" @click="handleReply(reply.rootId, reply.replyUserName, reply.parentId, comment.id)">
                             <el-icon><ChatDotRound /></el-icon> 回复
                           </span>
                           <span class="action-item report-action" @click="openReport('评论', reply.id, reply.context)">
@@ -279,10 +279,11 @@ onMounted(async () => {
   isLiked.value = article.value.isLike
   isCollected.value = article.value.isCollect
   comments.value = await getCommentList({
-    'articleId': paperId,
-    'status': '可见',
-    'pageNo': 0,
-    'pageSize': 10
+    userId: userStore.userInfo?.id,
+    articleId: paperId,
+    status: '可见',
+    pageNo: 0,
+    pageSize: 10
   })
 })
 
@@ -313,14 +314,14 @@ const goToUserProfile = (userId: number) => {
 
 // 1. 点赞评论功能
 const toggleCommentLike = (item: any) => {
-  if (item.isLiked) {
+  if (item.isLike) {
     item.likeNum--
-    item.isLiked = false
-    commentDislike(item.id)
+    item.isLike = false
+    commentDislike(item.id, userStore.userInfo?.id)
   } else {
     item.likeNum++
-    item.isLiked = true
-    commentLike(item.id)
+    item.isLike = true
+    commentLike(item.id, userStore.userInfo?.id)
   }
 }
 
@@ -330,6 +331,7 @@ const newComment = ref('')
 const replyState = ref({
   active: false,
   rootCommentId: 0, // 属于哪一条根评论
+  context: '',         // 回复时输入框的内容
   targetName: '',   // 回复的对象名字
   parentId: 0,      // 父评论id
   targetId: 0       // 被回复用户id
@@ -340,6 +342,7 @@ const handleReply = (rootCommentId: number, targetName: string, parentId: number
   replyState.value = {
     active: true,
     rootCommentId,
+    context: '',
     targetName,
     parentId,
     targetId
@@ -356,7 +359,7 @@ const handleReply = (rootCommentId: number, targetName: string, parentId: number
 
 // 取消回复
 const cancelReply = () => {
-  replyState.value = { active: false, rootCommentId: 0, targetName: '', parentId: 0, targetId: 0 }
+  replyState.value = { active: false, rootCommentId: 0, context: '', targetName: '', parentId: 0, targetId: 0 }
 }
 
 // ================== 文章浏览记录和历史记录 ==================
@@ -381,28 +384,27 @@ const trackArticleView = async (articleId: number) => {
 
 // 提交评论/回复
 const submitComment = () => {
-  if (!newComment.value.trim()) {
+  if (!replyState.value.context.trim()) {
     ElMessage.warning('内容不能为空')
     return
   }
 
   const newObj = 
   {
-    id: 101,
-    context: '111111111111111111',
-    articleId: 1,
-    commentUserId: 1,
+    context: replyState.value.context,
+    articleId: Number(paperId),
+    commentUserId: userStore.userInfo?.id,
     rootId: 0,
     parentId: 0,
     status: '可见',
     likeNum: 0,
     createTime: '2025-04-02 09:15',
-    userName: 'ccc',
-    avatar: '',
+    userName: userStore.userInfo?.username || '匿名用户',
+    avatar: userStore.userInfo?.avatar || '',
     isLike: false,
-    replyUserId: 0,
-    replyUserName: '',
-    replyAvatar: '',
+    replyUserId: userStore.userInfo?.id || 0,
+    replyUserName: userStore.userInfo?.username || '',
+    replyAvatar: userStore.userInfo?.avatar || '',
     children: []
   }
 
@@ -430,6 +432,7 @@ const submitComment = () => {
   addComment({
     context: newObj.context,
     articleId: newObj.articleId,
+    commentUserId: userStore.userInfo?.id,
     rootId: newObj.rootId,
     parentId: newObj.parentId
   })

@@ -2,7 +2,7 @@
   <div class="login-container">
     <!-- 左侧背景图 -->
     <div class="left-panel">
-      <img src="D:\vue\bird_forum_web\public\背景.png" alt="背景图" class="bg-image" />
+      <img src="/public/背景.png" alt="背景图" class="bg-image" />
     </div>
 
     <!-- 右侧登录表单 -->

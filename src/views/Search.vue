@@ -7,7 +7,7 @@
       <div class="search-box">
         <el-input
           v-model="searchInputValue"
-          placeholder="搜索文章或作者"
+          placeholder="搜索文章"
           :prefix-icon="Search"
           @keyup.enter="handleSearch"
           style="width: 400px; margin-right: 20px;"

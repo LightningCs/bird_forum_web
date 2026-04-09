@@ -75,7 +75,7 @@
               >
                 <div>
                   <div class="paper-title">{{ paper.title }}</div>
-                  <div class="paper-summary">{{ paper.context }}</div>
+                  <div class="paper-summary" v-html="paper.context" ></div>
                   <div class="paper-meta">
                     <span>
                       <el-tag v-for="item in paper.categories" size="small" effect="plain">{{ item.name }}</el-tag>
@@ -115,7 +115,7 @@
               >
                 <div>
                   <div class="paper-title">{{ paper.title }}</div>
-                  <div class="paper-summary">{{ paper.context }}</div>
+                  <div class="paper-summary" v-html="paper.context" ></div>
                   <div class="paper-meta">
                     <span>
                       <el-tag v-for="item in paper.categories" size="small" effect="plain">{{ item.name }}</el-tag>

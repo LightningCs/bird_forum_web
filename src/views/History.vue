@@ -43,7 +43,7 @@
             >
               <div class="content-left" @click="goToPaperDetail(item.articleId)">
                 <h3 class="paper-title">{{ item.title }}</h3>
-                <p class="paper-summary">{{ item.summary }}</p>
+                <p class="paper-summary" v-html="item.summary"></p>
                 
                 <div class="paper-meta">
                   <el-tag v-for="category in item.categories" :key="id" size="small" :type="item.tagType" plain>

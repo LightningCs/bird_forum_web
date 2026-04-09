@@ -67,14 +67,14 @@
             <div class="friend-right">
               <!-- 关注/互关按钮 -->
               <el-button 
-                :type="friend.isFollowed ? 'default' : 'primary'" 
+                :type="!friend.isFollowed ? 'default' : 'primary'" 
                 :plain="!friend.isFollowed"
                 class="action-btn follow-btn"
                 @click="toggleFollow(friend)"
               >
-                <el-icon v-if="friend.isFollowed"><Switch /></el-icon>
+                <el-icon v-if="!friend.isFollowed"><Switch /></el-icon>
                 <el-icon v-else><Check /></el-icon>
-                {{ friend.isFollowed ? '已关注' : '互相关注' }}
+                {{ !friend.isFollowed ? '已关注' : '互相关注' }}
               </el-button>
               
               <!-- 聊天按钮 -->
@@ -130,15 +130,15 @@ const filteredFriends = computed(() => {
 
 // 关注/取消关注交互逻辑
 const toggleFollow = (friend: any) => {
-  if (friend.isMutual) {
+  if (!friend.isFollowed) {
     // 如果是互关，点击变成单向关注 (取消了我的关注)
     ElMessage.info(`已取消关注 ${friend.name}`)
     // 实际项目中应该是调接口删除好友关系，这里简单模拟状态变化
-    friend.isMutual = false
+    friend.isFollowed = false
   } else {
     // 重新关注
     ElMessage.success(`关注成功！`)
-    friend.isMutual = true 
+    friend.isFollowed = true 
   }
 }
 

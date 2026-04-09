@@ -258,7 +258,7 @@ const sendMessage = () => {
 
   inputText.value = ''
   scrollToBottom()
-  simulateReply(friendId)
+  // simulateReply(friendId)
 }
 
 // 模拟对方实时回复

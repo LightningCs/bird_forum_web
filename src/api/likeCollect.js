@@ -7,16 +7,16 @@ export function likeCollection(req) {
   })
 }
 
-export function commentLike(id) {
+export function commentLike(commentId, userId) {
     return request({
-      url: '/comment-like/' + id,
+      url: '/comment-like/' + commentId + '/' + userId,
       method: 'post',
     })
 }
 
-export function commentDislike(id) {
+export function commentDislike(commentId, userId) {
     return request({
-      url: '/comment-like/' + id,
+      url: '/comment-like/' + commentId + '/' + userId,
       method: 'delete',
     })
 }
