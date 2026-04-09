@@ -122,7 +122,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete, CircleClose, CircleCheck } from '@element-plus/icons-vue'
-import { getCategoryList } from '@/api/category'
+import { getCategoryList, updateCategory, batchDeleteCategories, deleteCategory } from '@/api/category'
 
 // ================== 状态定义 ==================
 const loading = ref(false)
@@ -134,7 +134,7 @@ const dialogMode = ref<'add' | 'edit'>('add')
 
 const searchForm = reactive({
   name: '',
-  status: '' as string
+  status: ''
 })
 
 const pagination = reactive({
@@ -144,8 +144,7 @@ const pagination = reactive({
 })
 
 const selectedRows = ref<any[]>([])
-const allData = ref<any[]>([])   // 后端返回的完整数据
-const tableData = ref<any[]>([]) // 当前页展示的数据
+const tableData = ref<any[]>([])
 
 const dialogForm = reactive({
   id: null as number | null,
@@ -158,61 +157,45 @@ const dialogRules = {
   status: [{ required: true, message: '请选择状态', trigger: 'change' }]
 }
 
-// ================== 数据获取 ==================
+// ================== 后端API调用 ==================
 
-const applyFilter = () => {
-  let filtered = allData.value
-  if (searchForm.name) {
-    filtered = filtered.filter(item => item.name.includes(searchForm.name))
-  }
-  if (searchForm.status !== '') {
-    filtered = filtered.filter(item => item.status === searchForm.status)
-  }
-  pagination.total = filtered.length
-  const start = (pagination.currentPage - 1) * pagination.pageSize
-  tableData.value = filtered.slice(start, start + pagination.pageSize)
-}
-
-const fetchTableData = async () => {
+// 加载分类列表
+const loadCategoryList = async () => {
   loading.value = true
   try {
-    const res = await getCategoryList({
+    const params: any = {
       pageNo: pagination.currentPage,
-      pageSize: pagination.pageSize,
-      name: searchForm.name || undefined,
-      status: searchForm.status === '' ? undefined : searchForm.status
-    })
-    allData.value = res || []
-    applyFilter()
-  } catch {
-    allData.value = [
-      { id: 1, name: '科技', icon: '', articleCount: 5, status: '启用', createTime: '2026-03-10 13:15:00', updateTime: null },
-      { id: 2, name: 'Java', icon: '', articleCount: 12, status: '启用', createTime: '2026-03-10 13:15:00', updateTime: null },
-      { id: 3, name: 'Python', icon: '', articleCount: 8, status: '启用', createTime: '2026-03-10 13:15:00', updateTime: null },
-      { id: 4, name: 'Redis', icon: '', articleCount: 0, status: '启用', createTime: '2026-03-10 13:15:00', updateTime: null },
-      { id: 5, name: 'Vue', icon: '', articleCount: 3, status: '禁用', createTime: '2026-03-10 13:15:00', updateTime: null },
-    ]
-    applyFilter()
+      pageSize: pagination.pageSize
+    }
+    if (searchForm.name) params.name = searchForm.name
+    if (searchForm.status) params.status = searchForm.status
+
+    const res = await getCategoryList(params)
+    tableData.value = res || []
+    pagination.total = res.length || 0
+  } catch (error) {
+    ElMessage.error('获取分类列表失败')
   } finally {
     loading.value = false
   }
 }
 
 onMounted(() => {
-  fetchTableData()
+  loadCategoryList()
 })
 
 // ================== 搜索与分页 ==================
 
 const handleSearch = () => {
   pagination.currentPage = 1
-  applyFilter()
+  loadCategoryList()
 }
 
 const resetSearch = () => {
-  if (searchFormRef.value) searchFormRef.value.resetFields()
-  pagination.currentPage = 1
-  applyFilter()
+  if (searchFormRef.value) {
+    searchFormRef.value.resetFields()
+  }
+  handleSearch()
 }
 
 const handleSelectionChange = (val: any[]) => {
@@ -221,12 +204,12 @@ const handleSelectionChange = (val: any[]) => {
 
 const handleSizeChange = (val: number) => {
   pagination.pageSize = val
-  applyFilter()
+  loadCategoryList()
 }
 
 const handleCurrentChange = (val: number) => {
   pagination.currentPage = val
-  applyFilter()
+  loadCategoryList()
 }
 
 // ================== Dialog 操作 ==================
@@ -239,6 +222,9 @@ const openDialog = (row?: any) => {
     dialogForm.status = row.status
   } else {
     dialogMode.value = 'add'
+    dialogForm.id = null
+    dialogForm.name = ''
+    dialogForm.status = '启用'
   }
   dialogVisible.value = true
 }
@@ -254,12 +240,20 @@ const handleSubmit = async () => {
   await dialogFormRef.value?.validate()
   submitLoading.value = true
   try {
-    // TODO: 调用新增/编辑接口
-    // dialogMode.value === 'add' ? await addCategory(dialogForm) : await updateCategory(dialogForm)
-    await new Promise(resolve => setTimeout(resolve, 400)) // 模拟请求
-    ElMessage.success(dialogMode.value === 'add' ? '新增成功' : '编辑成功')
-    dialogVisible.value = false
-    fetchTableData()
+    const data = {
+      name: dialogForm.name,
+      status: dialogForm.status
+    }
+    const res = await updateCategory(data)
+    if (res.code === 200) {
+      ElMessage.success(dialogMode.value === 'add' ? '新增成功' : '编辑成功')
+      dialogVisible.value = false
+      loadCategoryList()
+    } else {
+      ElMessage.error(res.message || '操作失败')
+    }
+  } catch (error) {
+    ElMessage.error(dialogMode.value === 'add' ? '新增失败' : '编辑失败')
   } finally {
     submitLoading.value = false
   }
@@ -267,15 +261,28 @@ const handleSubmit = async () => {
 
 // ================== 行内操作 ==================
 
-const handleToggleStatus = (row: any) => {
+const handleToggleStatus = async (row: any) => {
   const action = row.status === '启用' ? '禁用' : '启用'
   ElMessageBox.confirm(`确定要${action}分类「${row.name}」吗？`, `${action}确认`, {
     confirmButtonText: `确定${action}`,
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    row.status = action
-    ElMessage.success(`已${action}`)
+  }).then(async () => {
+    try {
+      const data = {
+        name: row.name,
+        status: action
+      }
+      const res = await updateCategory(data)
+      if (res.code === 200) {
+        ElMessage.success(`已${action}`)
+        loadCategoryList()
+      } else {
+        ElMessage.error(res.message || `${action}失败`)
+      }
+    } catch (error) {
+      ElMessage.error(`${action}失败`)
+    }
   }).catch(() => {})
 }
 
@@ -284,9 +291,18 @@ const handleDelete = (row: any) => {
     confirmButtonText: '确定删除',
     cancelButtonText: '取消',
     type: 'error'
-  }).then(() => {
-    ElMessage.success('删除成功')
-    fetchTableData()
+  }).then(async () => {
+    try {
+      const res = await deleteCategory(row.id)
+      if (res.code === 200) {
+        ElMessage.success('删除成功')
+        loadCategoryList()
+      } else {
+        ElMessage.error(res.message || '删除失败')
+      }
+    } catch (error) {
+      ElMessage.error('删除失败')
+    }
   }).catch(() => {})
 }
 
@@ -295,9 +311,19 @@ const handleBatchDelete = () => {
     confirmButtonText: '确定删除',
     cancelButtonText: '取消',
     type: 'error'
-  }).then(() => {
-    ElMessage.success(`已删除 ${selectedRows.value.length} 个分类`)
-    fetchTableData()
+  }).then(async () => {
+    const ids = selectedRows.value.map(r => r.id)
+    try {
+      const res = await batchDeleteCategories(ids)
+      if (res.code === 200) {
+        ElMessage.success(`已删除 ${ids.length} 个分类`)
+        loadCategoryList()
+      } else {
+        ElMessage.error(res.message || '批量删除失败')
+      }
+    } catch (error) {
+      ElMessage.error('批量删除失败')
+    }
   }).catch(() => {})
 }
 </script>

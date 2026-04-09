@@ -37,6 +37,7 @@
               placeholder="请输入您绑定的邮箱账号" 
               :prefix-icon="Message"
               clearable
+              disabled
             />
           </el-form-item>
 
@@ -108,17 +109,18 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ArrowLeft, Lock, Message, Key, CircleCheck } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user.ts'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 // ================== 状态与数据 ==================
-const pwdFormRef = ref<FormInstance | null>(null)
 const loading = ref(false)
 const countdown = ref(0) // 验证码倒计时
 
 // 表单数据绑定
-const pwdForm = reactive({
-  email: 'zhangsan@example.com', // 实际开发中，这里可以默认填入当前登录用户的邮箱
+const pwdForm = ref({
+  email: userStore.userInfo?.account, // 实际开发中，这里可以默认填入当前登录用户的邮箱
   code: '',
   newPassword: '',
   confirmPassword: ''
@@ -129,7 +131,7 @@ const pwdForm = reactive({
 const validatePass2 = (rule: any, value: string, callback: any) => {
   if (value === '') {
     callback(new Error('请再次输入新密码'))
-  } else if (value !== pwdForm.newPassword) {
+  } else if (value !== pwdForm.value.newPassword) {
     callback(new Error('两次输入的密码不一致!'))
   } else {
     callback()
@@ -159,18 +161,18 @@ const rules = reactive<FormRules>({
 // 发送验证码逻辑
 const sendVerifyCode = () => {
   // 先单独校验邮箱格式是否正确
-  if (!pwdForm.email) {
+  if (!pwdForm.value.email) {
     ElMessage.warning('请先输入邮箱账号')
     return
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(pwdForm.email)) {
+  if (!emailRegex.test(pwdForm.value.email)) {
     ElMessage.error('邮箱格式不正确，无法发送')
     return
   }
 
   // 模拟发送接口请求
-  ElMessage.success(`验证码已发送至 ${pwdForm.email}，请查收！`)
+  ElMessage.success(`验证码已发送至 ${pwdForm.value.email}，请查收！`)
   
   // 开启 60 秒倒计时
   countdown.value = 60
@@ -184,9 +186,9 @@ const sendVerifyCode = () => {
 
 // 提交修改逻辑
 const handleSubmit = async () => {
-  if (!pwdFormRef.value) return
+  if (!pwdForm.value) return
   
-  await pwdFormRef.value.validate((valid) => {
+  await pwdForm.value.validate((valid) => {
     if (valid) {
       loading.value = true
       

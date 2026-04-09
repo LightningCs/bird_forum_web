@@ -1,7 +1,7 @@
 <template>
   <div class="history-container">
     <header class="header">
-      <div class="logo">
+      <div class="logo" @click="() => {router.push('/')}">
         <span class="logo-text">小鸟论坛</span>
       </div>
       
@@ -31,19 +31,23 @@
         </div>
 
         <div class="paper-list">
-          <TransitionGroup name="list">
+          <div v-if="loading" class="loading-container">
+            <el-skeleton :rows="3" animated />
+          </div>
+
+          <TransitionGroup name="list" v-else-if="historyList.length > 0">
             <div 
               class="paper-item history-item" 
               v-for="item in historyList" 
-              :key="item.id"
+              :key="item.articleId"
             >
-              <div class="content-left">
-                <h3 class="paper-title" @click="goToPaperDetail(item.id)">{{ item.title }}</h3>
+              <div class="content-left" @click="goToPaperDetail(item.articleId)">
+                <h3 class="paper-title">{{ item.title }}</h3>
                 <p class="paper-summary">{{ item.summary }}</p>
                 
                 <div class="paper-meta">
-                  <el-tag size="small" :type="item.tagType" plain>
-                    {{ item.category }}
+                  <el-tag v-for="category in item.categories" :key="id" size="small" :type="item.tagType" plain>
+                    {{ category.name }}
                   </el-tag>
                   <span>·</span>
                   <span>发布于 {{ item.publishTime }}</span>
@@ -71,7 +75,7 @@
                   type="danger" 
                   plain 
                   size="small"
-                  @click.stop="handleDelete(item.id)"
+                  @click.stop="handleDelete(item.articleId)"
                 >
                   删除
                 </el-button>
@@ -79,7 +83,7 @@
             </div>
           </TransitionGroup>
           
-          <el-empty v-if="historyList.length === 0" description="暂无浏览历史" />
+          <el-empty v-if="!loading && historyList.length === 0" description="暂无浏览历史" />
         </div>
       </div>
     </main>
@@ -87,64 +91,79 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Bell } from '@element-plus/icons-vue'
+import { getHistory, deleteHistory } from '@/api/history'
+import { useUserStore } from '@/stores/user.ts'
 
 const router = useRouter()
+const userStore = useUserStore()
 
-// 模拟用户登录状态
-const isLoggedIn = ref(true) 
+// 用户登录状态
+const isLoggedIn = computed(() => userStore.isLoggedIn)
 
-// 模拟浏览历史数据
-const historyList = ref([
-  {
-    id: 1,
-    title: '基于深度学习的图像识别研究与实践',
-    summary: '本文提出了一种新的卷积神经网络结构，详细探讨了CNN的核心架构，用于提升图像分类准确率。',
-    category: '深度学习',
-    tagType: 'primary',
-    publishTime: '2025-04-01',
-    likes: 156,
-    lastViewedTime: '刚刚',
-    cover: 'https://picsum.photos/id/10/160/100'
-  },
-  {
-    id: 2,
-    title: '理解高并发：原理、场景和解决方案',
-    summary: '本文通过具体项目场景，详细介绍了高并发场景下的解决方案，如分布式锁、缓存、数据库优化、消息队列等。',
-    category: 'Java',
-    tagType: 'success',
-    publishTime: '2025-03-15',
-    likes: 89,
-    lastViewedTime: '2小时前',
-    cover: 'https://picsum.photos/id/20/160/100'
-  },
-  {
-    id: 3,
-    title: 'MySQL 优化与性能调优',
-    summary: '本文详细介绍了MySQL的性能优化方法，包括索引优化、查询优化、存储引擎优化等。',
-    category: 'MySQL',
-    tagType: 'warning',
-    publishTime: '2025-02-28',
-    likes: 234,
-    lastViewedTime: '昨天 14:30',
-    cover: 'https://picsum.photos/id/30/160/100'
+// 浏览历史数据
+const historyList = ref([])
+const loading = ref(false)
+
+// 获取历史记录
+const fetchHistory = async () => {
+  if (!userStore.userInfo?.id) {
+    ElMessage.warning('请先登录')
+    return
   }
-])
+
+  loading.value = true
+  try {
+    const res = await getHistory({
+      userId: userStore.userInfo.id,
+      pageNo: 1,
+      pageSize: 100
+    })
+    
+    if (res) {
+      // 根据后端实际返回结构调整映射
+      // 假设后端返回的数据结构包含以下字段：
+      // id, title, context/summary, createTime/lastViewedTime, likeNum/likes, image/cover, categoryName/category
+      historyList.value = Array.isArray(res) ? res.map((item: any) => ({
+        articleId: item.articleId,
+        title: item.article.title,
+        summary: item.article.context,
+        categories: item.article.categories || '',
+        tagType: 'primary',
+        publishTime: item.article.createTime || '',
+        likes: item.article.likeNum || 0,
+        lastViewedTime: item.viewTime,
+        cover: item.article.image || ''
+      })) : []
+    } else {
+      historyList.value = []
+    }
+  } catch (error) {
+    console.error('获取历史记录失败:', error)
+    const errorMessage = error instanceof Error ? error.message : '获取历史记录失败'
+    ElMessage.error(errorMessage)
+    historyList.value = []
+  } finally {
+    loading.value = false
+  }
+}
 
 const goToPaperDetail = (id: number) => { router.push(`/paper/${id}`) }
 
 const goToSubmit = () => { router.push('/submit-paper') }
 
 const openChat = () => { router.push('/chat') }
+
 // 跳转好友列表
 const goToFriends = () => {
   console.log('跳转到好友列表页面')
   router.push('/friends')
 }
 
-// ======== 新增：编辑与删除逻辑 ========
+// 编辑与删除逻辑
 const isEditMode = ref(false)
 
 // 切换编辑模式
@@ -153,9 +172,40 @@ const toggleEditMode = () => {
 }
 
 // 删除单条历史记录
-const handleDelete = (id) => {
-  historyList.value = historyList.value.filter(item => item.id !== id)
+const handleDelete = async (articleId: number) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要删除这条浏览记录吗？',
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    // 调用删除接口
+    await deleteHistory({
+      articleId,
+      userId: userStore.userInfo?.id
+    })
+
+    ElMessage.success('删除成功')
+    // 重新获取历史记录
+    await fetchHistory()
+  } catch (error: unknown) {
+    if (error !== 'cancel') {
+      console.error('删除失败:', error)
+      const errorMessage = error instanceof Error ? error.message : '删除失败'
+      ElMessage.error(errorMessage)
+    }
+  }
 }
+
+// 页面加载时获取历史记录
+onMounted(() => {
+  fetchHistory()
+})
 </script>
 
 <style scoped>
@@ -188,6 +238,10 @@ const handleDelete = (id) => {
   gap: 8px;
 }
 
+.logo-text {
+  cursor: pointer;
+}
+
 .header-right { 
   display: flex; 
   align-items: center; 
@@ -207,7 +261,7 @@ const handleDelete = (id) => {
   background: white; 
   border-radius: 8px; 
   padding: 24px; 
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
 }
 
 /* ======== 标题区：两端对齐适配编辑按钮 ======== */
@@ -217,9 +271,9 @@ const handleDelete = (id) => {
   margin-bottom: 20px; 
   color: #333; 
   display: flex;
-  justify-content: space-between; /* 让标题和按钮分居左右 */
+  justify-content: space-between; 
   align-items: center;
-  border-bottom: 1px solid #eee;
+  border-bottom: 2px solid #f0f0f0;
   padding-bottom: 15px;
 }
 
@@ -231,7 +285,7 @@ const handleDelete = (id) => {
 .section-title .subtitle {
   font-size: 14px;
   font-weight: normal;
-  color: #999;
+  color: #666;
   margin-left: 12px;
 }
 
@@ -241,11 +295,15 @@ const handleDelete = (id) => {
   position: relative;
 }
 
+.loading-container {
+  padding: 20px 0;
+}
+
 .paper-item.history-item { 
   display: flex;
   justify-content: space-between;
-  align-items: center; /* 确保右侧的删除按钮垂直居中 */
-  border-bottom: 1px solid #eee; 
+  align-items: center;
+  border-bottom: 1px solid #f0f0f0; 
   padding: 20px 0; 
   transition: all 0.3s ease; 
   cursor: pointer; 
@@ -254,6 +312,7 @@ const handleDelete = (id) => {
 
 .paper-item.history-item:hover { 
   background-color: #f9f9f9; 
+  transform: translateX(4px);
 }
 
 .paper-item.history-item:last-child {
@@ -278,6 +337,7 @@ const handleDelete = (id) => {
 
 .paper-item.history-item:hover .paper-title {
   color: #1a73e8; 
+  text-decoration: none;
 }
 
 .paper-summary { 
@@ -295,7 +355,7 @@ const handleDelete = (id) => {
   color: #999; 
   font-size: 12px; 
   display: flex; 
-  align-items: center;
+  align-items: center; 
   gap: 10px; 
 }
 
@@ -315,7 +375,14 @@ const handleDelete = (id) => {
   width: 100%;
   height: 100%;
   border-radius: 6px;
-  border: 1px solid #eee;
+  border: 1px solid #e0e0e0;
+  overflow: hidden;
+}
+
+.history-cover :deep(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .image-slot {
@@ -335,6 +402,7 @@ const handleDelete = (id) => {
   align-items: center;
   justify-content: center;
   padding-left: 10px;
+  min-width: 60px;
 }
 
 /* Vue 列表过渡动画 (配合 TransitionGroup 使用) */
@@ -342,9 +410,14 @@ const handleDelete = (id) => {
 .list-leave-active {
   transition: all 0.4s ease;
 }
-.list-enter-from,
-.list-leave-to {
+
+.list-enter-from {
   opacity: 0;
   transform: translateX(30px);
+}
+
+.list-leave-to {
+  opacity: 0;
+  transform: translateX(-30px);
 }
 </style>

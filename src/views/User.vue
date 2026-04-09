@@ -41,7 +41,7 @@
           </div>
         </div>
 
-        <div class="profile-right">
+        <div class="profile-right" v-if="Number(route.params.id) !== userStore.userInfo?.id">
           <!-- 关注按钮交互 -->
           <el-button 
             :type="userInfo.isFollowed ? 'default' : 'primary'" 
@@ -77,7 +77,9 @@
                   <div class="paper-title">{{ paper.title }}</div>
                   <div class="paper-summary">{{ paper.context }}</div>
                   <div class="paper-meta">
-                    <!-- <span><el-tag size="small" effect="plain">{{ paper.category }}</el-tag></span> -->
+                    <span>
+                      <el-tag v-for="item in paper.categories" size="small" effect="plain">{{ item.name }}</el-tag>
+                    </span>
                     <span>•</span>
                     <span>{{ paper.createTime }}</span>
                     <span>•</span>
@@ -115,7 +117,9 @@
                   <div class="paper-title">{{ paper.title }}</div>
                   <div class="paper-summary">{{ paper.context }}</div>
                   <div class="paper-meta">
-                    <span><el-tag size="small" effect="plain">{{ paper.category }}</el-tag></span>
+                    <span>
+                      <el-tag v-for="item in paper.categories" size="small" effect="plain">{{ item.name }}</el-tag>
+                    </span>
                     <span>•</span>
                     <span>{{ paper.createTime }}</span>
                     <span>•</span>
@@ -145,7 +149,7 @@
         </el-form-item>
         <el-form-item label="举报原因" prop="reasonId">
           <el-select v-model="reportForm.reasonId" placeholder="请选择举报原因" style="width: 100%;">
-            <el-option v-for="r in reportReasons" :key="r.id" :label="r.content" :value="r.id" />
+            <el-option v-for="r in reportReasons" :key="r.id" :label="r.id" :value="r.context" />
           </el-select>
         </el-form-item>
         <el-form-item label="补充描述" prop="description">
@@ -171,12 +175,13 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getUserById, getUserPublishArticleList, getUserCollectArticleList, submitReport } from '@/api/index'
+import { getUserById, getUserPublishArticleList, getUserCollectArticleList, submitReport, getReportReasonList } from '@/api/index'
+import { useUserStore } from '@/stores/user.ts'
 import { Pointer, Male, Female, View, Message, Calendar, Search, Bell, Warning } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
-
+const userStore = useUserStore()
 // ================== 1. 模拟用户核心数据 ==================
 const userInfo = ref({
   id: 1000,
@@ -211,6 +216,22 @@ const toggleFollow = () => {
   }
 }
 
+// 获取举报原因列表
+const fetchReportReasons = async () => {
+  try {
+    const data = await getReportReasonList({
+      context: '',
+      status: '启用',
+      pageNo: 1,
+      pageSize: 100
+    })
+    reportReasons.value = data || []
+  } catch (error) {
+    console.error('获取举报原因失败:', error)
+    ElMessage.error('获取举报原因失败')
+  }
+}
+
 // 模拟：根据 URL 参数加载特定用户数据
 onMounted(async () => {
   const targetUserId = route.params.id
@@ -222,6 +243,8 @@ onMounted(async () => {
     userArticles.value = await getUserPublishArticleList(targetUserId)
     // 获取用户收藏的文章列表
     userCollectArticles.value = await getUserCollectArticleList(targetUserId)
+    // 获取举报原因列表
+    await fetchReportReasons()
   }
 })
 
@@ -262,10 +285,11 @@ const handleSubmitReport = async () => {
   reportSubmitting.value = true
   try {
     await submitReport({
+      reporterId: userStore.value.userInfo?.id || 1,
       targetType: '用户',
       targetId: userInfo.value.id,
       reasonId: reportForm.value.reasonId,
-      description: reportForm.value.description
+      context: reportForm.value.description
     })
     ElMessage.success('举报已提交，我们将尽快处理')
     reportVisible.value = false

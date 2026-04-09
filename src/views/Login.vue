@@ -47,13 +47,15 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { loginApi } from '@/api/user'
+import { useUserStore } from '@/stores/user.ts'
 
 // 表单数据
 const loginForm = ref({
   username: '',
-  password: '',
-  captcha: ''
+  password: ''
 })
 
 // 是否记住我
@@ -71,10 +73,6 @@ const loginRules = {
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码至少6位', trigger: 'blur' }
-  ],
-  captcha: [
-    { required: true, message: '请输入验证码', trigger: 'blur' },
-    { min: 4, max: 4, message: '验证码为4位', trigger: 'blur' }
   ]
 }
 
@@ -83,18 +81,42 @@ const loginFormRef = ref(null)
 
 // 路由器
 const router = useRouter()
+const route = useRoute()
+const userStore = useUserStore()
 
 // 登录处理
 const handleLogin = async () => {
   await loginFormRef.value.validate()
   loading.value = true
+  
   try {
-    setTimeout(() => {
-      alert('登录成功！')
+    const res = await loginApi({
+      account: loginForm.value.username,
+      password: loginForm.value.password
+    })
+    
+    // 保存 token 到 store 和 localStorage
+    userStore.setToken(res.token)
+    
+    // 如果有用户信息，也保存
+    if (res.user) {
+      userStore.setUserInfo(res.user)
+    }
+
+    console.log(res)
+    
+    ElMessage.success('登录成功！')
+    
+    // 检查是否有 redirect 参数
+    const redirect = route.query.redirect as string
+    if (redirect) {
+      router.push(redirect)
+    } else {
       router.push('/')
-      loading.value = false
-    }, 1500)
-  } catch (error) {
+    }
+  } catch (error: any) {
+    ElMessage.error(error.message || '登录失败，请检查账号密码')
+  } finally {
     loading.value = false
   }
 }

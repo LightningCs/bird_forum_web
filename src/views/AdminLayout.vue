@@ -102,7 +102,7 @@ const logout = () => {
     type: 'warning',
   }).then(() => {
     ElMessage.success('已安全退出')
-    router.push('/admin-login') 
+    router.push('/admin/login') 
   }).catch(() => {})
 }
 </script>

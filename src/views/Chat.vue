@@ -274,7 +274,7 @@ const simulateReply = (friendId: number) => {
     const friendMsg = {
       id: Date.now() + 1,
       senderId: friendId,
-      text: randomReply,
+      content: randomReply,
       time: timeStr,
       showTime: false
     }

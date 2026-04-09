@@ -2,7 +2,7 @@ import request from '@/utils/request'
 
 export function likeCollection(req) {
   return request({
-    url: '/article-like-collection/' + req.id + '/' + req.type,
+    url: '/article-like-collection/' + req.userId + '/' + req.id + '/' + req.type,
     method: 'post',
   })
 }

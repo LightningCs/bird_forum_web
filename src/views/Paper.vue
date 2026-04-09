@@ -211,7 +211,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="补充描述" prop="description">
-          <el-input v-model="reportForm.description" type="textarea" :rows="3" placeholder="请详细描述举报原因（选填）" maxlength="200" show-word-limit />
+          <el-input v-model="reportForm.description" type="textarea" :rows="3" placeholder="请详细描述举报原因" maxlength="200" show-word-limit />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -227,10 +227,14 @@ import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getArticleById, getHotArticleList, getCommentList, likeCollection, commentDislike, commentLike, addComment, submitReport, getReportReasonList } from '@/api/index'
+import { addArticleView } from '@/api/article'
+import { addHistory } from '@/api/history'
+import { useUserStore } from '@/stores/user.ts'
 import { User, View, Pointer, Star, ChatDotRound, Bell, Warning } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const paperId = route.params.id
 
 // ================== 文章核心数据 ==================
@@ -262,14 +266,18 @@ watch(
         'pageNo': 0,
         'pageSize': 10
       })
+      await trackArticleView(Number(newId))
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 )
 
 onMounted(async () => {
-  article.value = await getArticleById(paperId)
+  await trackArticleView(Number(paperId))
+  article.value = await getArticleById(userStore.userInfo?.id, paperId)
   relatedArticles.value = await getHotArticleList()
+  isLiked.value = article.value.isLike
+  isCollected.value = article.value.isCollect
   comments.value = await getCommentList({
     'articleId': paperId,
     'status': '可见',
@@ -284,12 +292,14 @@ const isCollected = ref(false)
 const toggleLike = () => {
   isLiked.value = !isLiked.value
   article.value.likeNum += isLiked.value ? 1 : -1
-  likeCollection({ id: paperId, type: 1 })
+  likeCollection({ userId: userStore.userInfo?.id, id: paperId, type: 1 })
+  ElMessage.success("操作成功!")
 }
 const toggleCollect = () => {
   isCollected.value = !isCollected.value
   article.value.collectNum += isCollected.value ? 1 : -1
-  likeCollection({ id: paperId, type: 2 })
+  likeCollection({ userId: userStore.userInfo?.id, id: paperId, type: 2 })
+  ElMessage.success("操作成功!")
 }
 
 // ================== 跳转个人主页 ==================
@@ -348,6 +358,26 @@ const handleReply = (rootCommentId: number, targetName: string, parentId: number
 const cancelReply = () => {
   replyState.value = { active: false, rootCommentId: 0, targetName: '', parentId: 0, targetId: 0 }
 }
+
+// ================== 文章浏览记录和历史记录 ==================
+const trackArticleView = async (articleId: number) => {
+  try {
+    // 1. 增加文章浏览量
+    await addArticleView(articleId)
+    
+    // 2. 如果用户已登录，添加用户历史记录
+    if (userStore.userInfo?.id) {
+      await addHistory({
+        articleId: articleId,
+        userId: userStore.userInfo.id
+      })
+    }
+  } catch (error) {
+    console.error('Failed to track article view:', error)
+    // 静默失败，不影响用户体验
+  }
+}
+
 
 // 提交评论/回复
 const submitComment = () => {
@@ -537,7 +567,8 @@ const reportFormRef = ref()
 const reportSubmitting = ref(false)
 const reportForm = ref({ reasonId: null as number | null, description: '' })
 const reportRules = {
-  reasonId: [{ required: true, message: "请选择举报原因", trigger: "change" }]
+  reasonId: [{ required: true, message: "请选择举报原因", trigger: "change" }],
+  description: [{ required: true, message: "请填写举报描述", trigger: "blur" }]
 }
 const reportReasons = ref([
   { id: 1, content: "包含色情、暴力等违法违规内容" },
@@ -563,10 +594,11 @@ const handleSubmitReport = async () => {
   reportSubmitting.value = true
   try {
     await submitReport({
+      reporterId: userStore.userInfo?.id,
       targetType: reportDialog.value.targetType,
       targetId: reportDialog.value.targetId,
       reasonId: reportForm.value.reasonId,
-      description: reportForm.value.description
+      context: reportForm.value.description
     })
     ElMessage.success("举报已提交，我们将尽快处理")
     reportDialog.value.visible = false

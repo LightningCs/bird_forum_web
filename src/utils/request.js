@@ -1,6 +1,8 @@
 // src/utils/request.js
 import axios from 'axios'
-import { ElMessage } from 'element-plus' // 结合 Element Plus 做错误提示
+import { ElMessage } from 'element-plus'
+import router from '@/router'
+import { useUserStore } from '@/stores/user.ts'
 
 // 1. 创建 axios 实例
 const service = axios.create({
@@ -45,7 +47,10 @@ service.interceptors.response.use(
       switch (error.response.status) {
         case 401:
           message = 'Token 过期，请重新登录'
-          // 这里可以加上跳转登录页的逻辑
+          // 清除用户信息并跳转到登录页
+          const userStore = useUserStore()
+          userStore.logout()
+          router.push('/login')
           break
         case 404:
           message = '请求的资源不存在'

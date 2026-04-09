@@ -4,47 +4,34 @@
     <el-card shadow="never" class="search-card">
       <el-form :inline="true" :model="searchForm" ref="searchFormRef" class="search-form" label-width="80px">
         <!-- 1. 评论内容 -->
-        <el-form-item label="评论内容" prop="content">
+        <el-form-item label="评论内容" prop="context">
           <el-input v-model="searchForm.context" placeholder="请输入评论关键字" clearable />
         </el-form-item>
 
         <!-- 2. 发布者名称 -->
-        <el-form-item label="发布者" prop="authorName">
-          <el-input v-model="searchForm.userName" placeholder="请输入发布者名称" clearable />
+        <el-form-item label="发布者" prop="username">
+          <el-input v-model="searchForm.username" placeholder="请输入发布者名称" clearable />
         </el-form-item>
 
         <!-- 3. 所属文章 -->
-        <el-form-item label="所属文章" prop="articleTitle">
-          <el-input v-model="searchForm.articleTitle" placeholder="请输入文章标题" clearable />
+        <el-form-item label="所属文章" prop="title">
+          <el-input v-model="searchForm.title" placeholder="请输入文章标题" clearable />
         </el-form-item>
 
         <!-- 4. 是否违规 -->
-        <el-form-item label="违规状态" prop="isViolate">
+        <el-form-item label="违规状态" prop="isIllegal">
           <el-select v-model="searchForm.isIllegal" placeholder="请选择" clearable style="width: 140px;">
-            <el-option label="不违规" :value="0" />
-            <el-option label="违规" :value="1" />
+            <el-option label="不违规" :value="false" />
+            <el-option label="违规" :value="true" />
           </el-select>
         </el-form-item>
 
         <!-- 5. 评论状态 -->
         <el-form-item label="评论状态" prop="status">
           <el-select v-model="searchForm.status" placeholder="请选择状态" clearable style="width: 140px;">
-            <el-option label="可见" :value="1" />
-            <el-option label="不可见" :value="0" />
+            <el-option label="可见" value="可见" />
+            <el-option label="不可见" value="不可见" />
           </el-select>
-        </el-form-item>
-
-        <!-- 6. 发布日期 (范围选择器) -->
-        <el-form-item label="发布日期" prop="dateRange">
-          <el-date-picker
-            v-model="searchForm.dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            value-format="YYYY-MM-DD"
-            style="width: 260px;"
-          />
         </el-form-item>
 
         <!-- 搜索与重置按钮 -->
@@ -60,7 +47,7 @@
 
       <!-- 表格操作栏 -->
       <div class="table-header-actions">
-        <el-button type="danger" :icon="Delete" plain :disabled="selectedRows.length === 0" @click="handleBatchDelete">批量删除</el-button>
+        <el-button type="danger" :icon="Delete" plain :disabled="selectedRows.length === 0" @click="handleBatchDelete">批量删除了</el-button>
         <el-button type="warning" :icon="Hide" plain :disabled="selectedRows.length === 0" @click="handleBatchHide">批量隐藏</el-button>
       </div>
 
@@ -113,8 +100,22 @@
         <el-table-column prop="createTime" label="发布时间" width="160" align="center" sortable />
 
         <!-- 操作列 -->
-        <el-table-column label="操作" width="180" align="center" fixed="right">
+        <el-table-column label="操作" width="280" align="center" fixed="right">
           <template #default="scope">
+            <el-button
+              type="success"
+              link
+              :icon="Check"
+              v-if="scope.row.isIllegal"
+              @click="handleUpdateIllegal(scope.row, 0)"
+            >不违规</el-button>
+            <el-button
+              type="danger"
+              link
+              :icon="Close"
+              v-if="!scope.row.isIllegal"
+              @click="handleUpdateIllegal(scope.row, 1)"
+            >违规</el-button>
             <el-button
               type="warning"
               link
@@ -128,7 +129,7 @@
               :icon="View"
               v-else
               @click="handleShow(scope.row)"
-            >恢复可见</el-button>
+            >恢复</el-button>
             <el-button type="danger" link :icon="Delete" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
@@ -155,8 +156,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { Search, Refresh, Hide, Delete, View } from '@element-plus/icons-vue'
-import { getCommentList } from '@/api/index'
+import { Search, Refresh, Hide, Delete, View, Check, Close } from '@element-plus/icons-vue'
+import { getCommentList, batchHideComments, updateCommentIllegal, batchDeleteComments, deleteComment } from '@/api/comment'
 
 const router = useRouter()
 
@@ -165,12 +166,13 @@ const loading = ref(false)
 const searchFormRef = ref()
 
 const searchForm = reactive({
-  content: '',
-  authorName: '',
-  articleTitle: '',
-  isViolate: '' as number | '',
-  status: '' as number | '',
-  dateRange: [] as string[]
+  articleId: '',
+  rootId: '',
+  status: '',
+  context: '',
+  username: '',
+  title: '',
+  isIllegal: null as boolean | null
 })
 
 const pagination = reactive({
@@ -182,54 +184,49 @@ const pagination = reactive({
 const selectedRows = ref<any[]>([])
 const tableData = ref<any[]>([])
 
-// ================== 数据获取 ==================
+// ================== 后端API调用 ==================
 
-const fetchTableData = async () => {
+const loadCommentList = async () => {
   loading.value = true
   try {
     const params: any = {
       pageNo: pagination.currentPage,
-      pageSize: pagination.pageSize,
-      context: searchForm.content || undefined,
-      username: searchForm.authorName || undefined,
-      title: searchForm.articleTitle || undefined,
-      isIllegal: searchForm.isViolate === '' ? undefined : searchForm.isViolate,
-      status: searchForm.status === '' ? undefined : searchForm.status,
-      startTime: searchForm.dateRange?.[0] || undefined,
-      endTime: searchForm.dateRange?.[1] || undefined
+      pageSize: pagination.pageSize
     }
+    if (searchForm.articleId) params.articleId = searchForm.articleId
+    if (searchForm.rootId) params.rootId = searchForm.rootId
+    if (searchForm.status) params.status = searchForm.status
+    if (searchForm.context) params.context = searchForm.context
+    if (searchForm.username) params.username = searchForm.username
+    if (searchForm.title) params.title = searchForm.title
+    if (searchForm.isIllegal !== null) params.isIllegal = searchForm.isIllegal
+
     const res = await getCommentList(params)
-    tableData.value = res
-    pagination.total = res.total || 0
-  } catch {
-    // 接口不通时使用模拟数据
-    tableData.value = [
-      { id: 1, content: '这篇文章写得非常好，对我帮助很大！', authorName: '张三', articleId: 101, articleTitle: '基于深度学习的图像识别研究与实践', isViolate: 0, status: 1, publishTime: '2026-03-15 10:20:00' },
-      { id: 2, content: '有几个地方我不太理解，能详细解释一下吗？', authorName: '李四', articleId: 102, articleTitle: '论现代经济体系下的通货膨胀趋势', isViolate: 0, status: 1, publishTime: '2026-03-14 09:15:30' },
-      { id: 3, content: '这个观点有待商榷，数据来源不够权威。', authorName: '王五', articleId: 103, articleTitle: '大学生心理健康问卷调查数据分析', isViolate: 0, status: 0, publishTime: '2026-03-12 14:05:12' },
-      { id: 4, content: '垃圾文章，纯属浪费时间！！！', authorName: '黑客小明', articleId: 104, articleTitle: '违规测试文章：包含不当言论的文本提取', isViolate: 1, status: 1, publishTime: '2026-03-10 16:30:45' },
-    ]
-    pagination.total = 4
+    tableData.value = res || []
+    pagination.total = res.length || 0
+  } catch (error) {
+    ElMessage.error('获取评论列表失败')
   } finally {
     loading.value = false
   }
 }
 
+// ================== 数据获取 ==================
+
 onMounted(() => {
-  fetchTableData()
+  loadCommentList()
 })
 
 // ================== 搜索与分页 ==================
 
 const handleSearch = () => {
   pagination.currentPage = 1
-  fetchTableData()
+  loadCommentList()
 }
 
 const resetSearch = () => {
   if (searchFormRef.value) {
     searchFormRef.value.resetFields()
-    searchForm.dateRange = []
   }
   handleSearch()
 }
@@ -240,12 +237,12 @@ const handleSelectionChange = (val: any[]) => {
 
 const handleSizeChange = (val: number) => {
   pagination.pageSize = val
-  fetchTableData()
+  loadCommentList()
 }
 
 const handleCurrentChange = (val: number) => {
   pagination.currentPage = val
-  fetchTableData()
+  loadCommentList()
 }
 
 // ================== 跳转文章 ==================
@@ -257,13 +254,35 @@ const goToArticle = (articleId: number) => {
 
 // ================== 行内操作 ==================
 
+// 更新评论违规状态
+const handleUpdateIllegal = async (row: any, isIllegal: number) => {
+  const statusText = isIllegal === 0 ? '不违规' : '违规'
+  ElMessageBox.confirm(`确定要将评论标记为${statusText}吗？`, '确认操作', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      const res = await updateCommentIllegal(row.id, isIllegal)
+      if (res.code === 200) {
+        ElMessage.success(`评论已标记为${statusText}`)
+        loadCommentList()
+      } else {
+        ElMessage.error(res.message || '操作失败')
+      }
+    } catch (error) {
+      ElMessage.error('操作失败')
+    }
+  }).catch(() => {})
+}
+
 const handleHide = (row: any) => {
   ElMessageBox.confirm(`确定要隐藏该评论吗？前台用户将无法看到此评论。`, '隐藏提示', {
     confirmButtonText: '确定隐藏',
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
-    row.status = 0
+    row.status = '不可见'
     ElMessage.success('评论已隐藏')
   }).catch(() => {})
 }
@@ -274,7 +293,7 @@ const handleShow = (row: any) => {
     cancelButtonText: '取消',
     type: 'info'
   }).then(() => {
-    row.status = 1
+    row.status = '可见'
     ElMessage.success('评论已恢复可见')
   }).catch(() => {})
 }
@@ -284,9 +303,18 @@ const handleDelete = (row: any) => {
     confirmButtonText: '强制删除',
     cancelButtonText: '取消',
     type: 'error'
-  }).then(() => {
-    ElMessage.success('删除成功')
-    fetchTableData()
+  }).then(async () => {
+    try {
+      const res = await deleteComment(row.id)
+      if (res.code === 200) {
+        ElMessage.success('删除成功')
+        loadCommentList()
+      } else {
+        ElMessage.error(res.message || '删除失败')
+      }
+    } catch (error) {
+      ElMessage.error('删除失败')
+    }
   }).catch(() => {})
 }
 
@@ -297,9 +325,19 @@ const handleBatchDelete = () => {
     confirmButtonText: '确定删除',
     cancelButtonText: '取消',
     type: 'error'
-  }).then(() => {
-    ElMessage.success(`已删除 ${selectedRows.value.length} 条评论`)
-    fetchTableData()
+  }).then(async () => {
+    const ids = selectedRows.value.map(r => r.id)
+    try {
+      const res = await batchDeleteComments(ids)
+      if (res.code === 200) {
+        ElMessage.success(`已删除 ${ids.length} 条评论`)
+        loadCommentList()
+      } else {
+        ElMessage.error(res.message || '批量删除失败')
+      }
+    } catch (error) {
+      ElMessage.error('批量删除失败')
+    }
   }).catch(() => {})
 }
 
@@ -308,9 +346,19 @@ const handleBatchHide = () => {
     confirmButtonText: '确定隐藏',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    selectedRows.value.forEach(row => { row.status = 0 })
-    ElMessage.success(`已隐藏 ${selectedRows.value.length} 条评论`)
+  }).then(async () => {
+    const ids = selectedRows.value.map(r => r.id)
+    try {
+      const res = await batchHideComments(ids)
+      if (res.code === 200) {
+        ElMessage.success(`已隐藏 ${ids.length} 条评论`)
+        loadCommentList()
+      } else {
+        ElMessage.error(res.message || '批量隐藏失败')
+      }
+    } catch (error) {
+      ElMessage.error('批量隐藏失败')
+    }
   }).catch(() => {})
 }
 </script>

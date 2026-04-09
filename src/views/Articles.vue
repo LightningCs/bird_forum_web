@@ -9,13 +9,13 @@
         </el-form-item>
 
         <!-- 2. 文章内容 -->
-        <el-form-item label="文章内容" prop="content">
-          <el-input v-model="searchForm.content" placeholder="请输入内容关键字" clearable />
+        <el-form-item label="文章内容" prop="context">
+          <el-input v-model="searchForm.context" placeholder="请输入内容关键字" clearable />
         </el-form-item>
 
         <!-- 3. 发布者名称 -->
-        <el-form-item label="发布者" prop="authorName">
-          <el-input v-model="searchForm.authorName" placeholder="请输入发布者名称" clearable />
+        <el-form-item label="发布者" prop="publisherName">
+          <el-input v-model="searchForm.publisherName" placeholder="请输入发布者名称" clearable />
         </el-form-item>
 
         <!-- 4. 文章分类 -->
@@ -30,8 +30,8 @@
         </el-form-item>
 
         <!-- 5. 是否违规 -->
-        <el-form-item label="违规状态" prop="isViolate">
-          <el-select v-model="searchForm.isViolate" placeholder="请选择" clearable style="width: 180px;">
+        <el-form-item label="违规状态" prop="violationStatus">
+          <el-select v-model="searchForm.violationStatus" placeholder="请选择" clearable style="width: 180px;">
             <el-option label="不违规" :value="0" />
             <el-option label="违规" :value="1" />
           </el-select>
@@ -44,19 +44,6 @@
             <el-option label="已发布" :value="1" />
             <el-option label="不可见" :value="2" />
           </el-select>
-        </el-form-item>
-
-        <!-- 7. 发布日期 (范围选择器) -->
-        <el-form-item label="发布日期" prop="dateRange">
-          <el-date-picker
-            v-model="searchForm.dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            value-format="YYYY-MM-DD"
-            style="width: 260px;"
-          />
         </el-form-item>
 
         <!-- 搜索与重置按钮 -->
@@ -72,8 +59,8 @@
       
       <!-- 表格操作栏 -->
       <div class="table-header-actions">
-        <el-button type="danger" :icon="Delete" plain :disabled="selectedRows.length === 0">批量删除</el-button>
-        <el-button type="warning" :icon="Hide" plain :disabled="selectedRows.length === 0">批量隐藏</el-button>
+        <el-button type="danger" :icon="Delete" plain :disabled="selectedRows.length === 0" @click="handleBatchDelete">批量删除</el-button>
+        <el-button type="warning" :icon="Hide" plain :disabled="selectedRows.length === 0" @click="handleBatchHide">批量隐藏</el-button>
       </div>
 
       <!-- 数据表格 -->
@@ -94,8 +81,10 @@
               <img :src="scope.row.image || 'https://via.placeholder.com/80x50?text=无封面'" class="article-cover" />
               <div class="article-text">
                 <div class="article-title">{{ scope.row.title }}</div>
-                <div class="article-category" v-for="category in scope.row.categories">
-                  <el-tag size="small" type="info">{{ category.name }}</el-tag>
+                <div class="article-stats">
+                  <span>👍 {{ scope.row.likeNum }}</span>
+                  <span>⭐ {{ scope.row.collectNum }}</span>
+                  <span>👁 {{ scope.row.viewNum }}</span>
                 </div>
               </div>
             </div>
@@ -124,17 +113,37 @@
         <el-table-column prop="createTime" label="发布时间" width="160" align="center" sortable />
 
         <!-- 操作列 -->
-        <el-table-column label="操作" width="220" align="center" fixed="right">
+        <el-table-column label="操作" width="280" align="center" fixed="right">
           <template #default="scope">
             <el-button type="primary" link :icon="View" @click="handleView(scope.row)">查看</el-button>
+            <el-button 
+              type="success" 
+              link 
+              :icon="Check"
+              v-if="scope.row.isIllegal === 1"
+              @click="handleUpdateIllegal(scope.row, 0)"
+            >不违规</el-button>
+            <el-button 
+              type="danger" 
+              link 
+              :icon="Close"
+              v-if="scope.row.isIllegal === 0"
+              @click="handleUpdateIllegal(scope.row, 1)"
+            >违规</el-button>
             <el-button 
               type="warning" 
               link 
               :icon="Hide" 
-              v-if="scope.row.status === 1"
+              v-if="scope.row.status === '已发布'"
               @click="handleHide(scope.row)"
-            >下架</el-button>
-            <el-button type="danger" link :icon="Delete" @click="handleDelete(scope.row)">删除</el-button>
+            >隐藏</el-button>
+            <el-button 
+              type="success" 
+              link 
+              :icon="View"
+              v-if="scope.row.status === '不可见'"
+              @click="handleShow(scope.row)"
+            >显示</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -160,8 +169,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { Search, Refresh, Hide, Delete, View } from '@element-plus/icons-vue'
-import { getArticleList } from '@/api/index'
+import { Search, Refresh, Hide, Delete, View, Check, Close } from '@element-plus/icons-vue'
+import { getArticleList, batchHideArticles, updateArticleIllegal, batchDeleteArticles, updateArticleStatus } from '@/api/article'
 
 const router = useRouter()
 
@@ -172,70 +181,70 @@ const searchFormRef = ref()
 // 搜索表单数据
 const searchForm = reactive({
   title: '',
-  content: '',
-  authorName: '',
+  context: '',
+  publisherName: '',
   category: '',
-  isViolate: '', // 0: 不违规, 1: 违规
-  status: '',    // 0: 草稿, 1: 已发布, 2: 不可见
-  dateRange: []  //[开始日期, 结束日期]
+  violationStatus: '', // 0: 不违规, 1: 违规
+  status: ''         // 0: 草稿, 1: 已发布, 2: 不可见
 })
 
 // 分页数据
 const pagination = reactive({
   currentPage: 1,
   pageSize: 10,
-  total: 1285 // 模拟总数
+  total: 0
 })
 
 // 表格多选数据
 const selectedRows = ref<any[]>([])
 
-// 模拟表格数据
+// 表格数据
 const tableData = ref<any[]>([])
+
+// ================== 后端API调用 ==================
+
+// 加载文章列表
+const loadArticleList = async () => {
+  loading.value = true
+  try {
+    const params: any = {
+      pageNo: pagination.currentPage,
+      pageSize: pagination.pageSize
+    }
+    if (searchForm.title) params.title = searchForm.title
+    if (searchForm.context) params.context = searchForm.context
+    if (searchForm.publisherName) params.publisherName = searchForm.publisherName
+    if (searchForm.category) params.category = searchForm.category
+    if (searchForm.violationStatus !== '') params.violationStatus = searchForm.violationStatus
+    if (searchForm.status !== '') params.status = searchForm.status
+
+    const res = await getArticleList(params)
+      tableData.value = res || []
+      pagination.total = res.length
+  } catch (error) {
+    ElMessage.error('获取文章列表失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 // ================== 方法与逻辑 ==================
 
-// 模拟从后台获取数据
-const fetchTableData = async () => {
-  loading.value = true
-  console.log('搜索参数：', { ...searchForm, page: pagination.currentPage, size: pagination.pageSize })
-
-  tableData.value = await getArticleList({
-    'pageNo': 0,
-    'pageSize': 1,
-    'pageNum': 10
-  })
-  loading.value = false
-  pagination.total = tableData.value.length
-  
-  // setTimeout(() => {
-  //   // 模拟后端返回的数据
-  //   tableData.value =[
-  //     { id: 101, title: '基于深度学习的图像识别研究与实践', cover: 'https://via.placeholder.com/80x50/1a73e8/ffffff?text=AI', category: '人工智能', authorName: '张三', status: 1, isViolate: 0, publishTime: '2026-03-15 10:20:00' },
-  //     { id: 102, title: '论现代经济体系下的通货膨胀趋势', cover: null, category: '经济学', authorName: '李四', status: 1, isViolate: 0, publishTime: '2026-03-14 09:15:30' },
-  //     { id: 103, title: '大学生心理健康问卷调查数据分析', cover: 'https://via.placeholder.com/80x50/ff9800/ffffff?text=Data', category: '心理学', authorName: '王五', status: 0, isViolate: 0, publishTime: '2026-03-12 14:05:12' },
-  //     { id: 104, title: '违规测试文章：包含不当言论的文本提取', cover: 'https://via.placeholder.com/80x50/f56c6c/ffffff?text=Ban', category: '计算机科学', authorName: '黑客小明', status: 2, isViolate: 1, publishTime: '2026-03-10 16:30:45' },
-  //   ]
-  //   loading.value = false
-  // }, 600)
-}
-
 // 组件挂载时拉取一次数据
-onMounted(async () => {
-  fetchTableData()
+onMounted(() => {
+  loadArticleList()
 })
 
 // 搜索按钮
 const handleSearch = () => {
   pagination.currentPage = 1 // 搜索时重置回第一页
-  fetchTableData()
+  loadArticleList()
 }
 
 // 重置按钮
 const resetSearch = () => {
   if (searchFormRef.value) {
     searchFormRef.value.resetFields()
-    searchForm.dateRange =[] // 手动清空日期范围
   }
   handleSearch()
 }
@@ -248,44 +257,129 @@ const handleSelectionChange = (val: any[]) => {
 // 分页处理
 const handleSizeChange = (val: number) => {
   pagination.pageSize = val
-  fetchTableData()
+  loadArticleList()
 }
 const handleCurrentChange = (val: number) => {
   pagination.currentPage = val
-  fetchTableData()
+  loadArticleList()
 }
 
 // ================== 表格行内操作 ==================
 
-// 查看文章详情 (可以在新窗口打开前台的文章详情页)
+// 查看文章详情
 const handleView = (row: any) => {
-  // router.resolve 可以用来打开新标签页
   const routeUrl = router.resolve({ path: `/paper/${row.id}` })
   window.open(routeUrl.href, '_blank')
   ElMessage.info(`正在新窗口预览文章: ${row.title}`)
 }
 
-// 下架/隐藏文章 (将状态由"已发布"改为"不可见")
-const handleHide = (row: any) => {
-  ElMessageBox.confirm(`确定要将文章 [${row.title}] 设为不可见吗？前台用户将无法访问。`, '下架提示', {
-    confirmButtonText: '确定下架',
+// 更新文章违规状态
+const handleUpdateIllegal = async (row: any, isIllegal: number) => {
+  const statusText = isIllegal === 0 ? '不违规' : '违规'
+  ElMessageBox.confirm(`确定要将文章标记为${statusText}吗？`, '确认操作', {
+    confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    row.status = 2 // 2代表不可见
-    ElMessage.success('文章已下架')
+  }).then(async () => {
+    try {
+      const res = await updateArticleIllegal(row.id, isIllegal)
+      if (res.code === 200) {
+        ElMessage.success(`文章已标记为${statusText}`)
+        loadArticleList()
+      } else {
+        ElMessage.error(res.message || '操作失败')
+      }
+    } catch (error) {
+      ElMessage.error('操作失败')
+    }
   }).catch(() => {})
 }
 
-// 删除文章
-const handleDelete = (row: any) => {
-  ElMessageBox.confirm(`确定要永久删除文章 [${row.title}] 吗？此操作不可恢复！`, '危险操作提示', {
-    confirmButtonText: '强制删除',
+// 隐藏文章
+const handleHide = (row: any) => {
+  ElMessageBox.confirm(`确定要将文章 [${row.title}] 设为不可见吗？前台用户将无法访问。`, '隐藏提示', {
+    confirmButtonText: '确定隐藏',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      const res = await updateArticleStatus({ id: row.id, status: '不可见' })
+      if (res.code === 200) {
+        ElMessage.success('文章已隐藏')
+        loadArticleList()
+      } else {
+        ElMessage.error(res.message || '操作失败')
+      }
+    } catch (error) {
+      ElMessage.error('操作失败')
+    }
+  }).catch(() => {})
+}
+
+// 显示文章
+const handleShow = (row: any) => {
+  ElMessageBox.confirm(`确定要将文章 [${row.title}] 重新发布吗？`, '显示提示', {
+    confirmButtonText: '确定显示',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      const res = await updateArticleStatus({ id: row.id, status: '已发布' })
+      if (res.code === 200) {
+        ElMessage.success('文章已重新发布')
+        loadArticleList()
+      } else {
+        ElMessage.error(res.message || '操作失败')
+      }
+    } catch (error) {
+      ElMessage.error('操作失败')
+    }
+  }).catch(() => {})
+}
+
+// ================== 批量操作 ==================
+
+// 批量隐藏
+const handleBatchHide = () => {
+  ElMessageBox.confirm(`确定要将选中的 ${selectedRows.value.length} 篇文章设为不可见吗？`, '批量隐藏', {
+    confirmButtonText: '确定隐藏',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    const ids = selectedRows.value.map(r => r.id)
+    try {
+      const res = await batchHideArticles(ids)
+      if (res.code === 200) {
+        ElMessage.success(`已隐藏 ${ids.length} 篇文章`)
+        loadArticleList()
+      } else {
+        ElMessage.error(res.message || '批量隐藏失败')
+      }
+    } catch (error) {
+      ElMessage.error('批量隐藏失败')
+    }
+  }).catch(() => {})
+}
+
+// 批量删除
+const handleBatchDelete = () => {
+  ElMessageBox.confirm(`确定要永久删除选中的 ${selectedRows.value.length} 篇文章吗？此操作不可恢复！`, '批量删除', {
+    confirmButtonText: '确定删除',
     cancelButtonText: '取消',
     type: 'error'
-  }).then(() => {
-    ElMessage.success('删除成功')
-    fetchTableData() // 删除后重新拉取列表
+  }).then(async () => {
+    const ids = selectedRows.value.map(r => r.id)
+    try {
+      const res = await batchDeleteArticles(ids)
+      if (res.code === 200) {
+        ElMessage.success(`已删除 ${ids.length} 篇文章`)
+        loadArticleList()
+      } else {
+        ElMessage.error(res.message || '批量删除失败')
+      }
+    } catch (error) {
+      ElMessage.error('批量删除失败')
+    }
   }).catch(() => {})
 }
 </script>
@@ -321,7 +415,7 @@ const handleDelete = (row: any) => {
 
 /* ================== 表格内自定义样式 ================== */
 
-/* 图文混排的“文章信息”列 */
+/* 图文混排的"文章信息"列 */
 .article-info-col {
   display: flex;
   align-items: center;
@@ -354,6 +448,13 @@ const handleDelete = (row: any) => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.article-stats {
+  font-size: 12px;
+  color: #909399;
+  display: flex;
+  gap: 10px;
 }
 
 /* 分页组件对齐 */

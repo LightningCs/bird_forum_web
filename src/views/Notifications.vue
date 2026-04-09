@@ -15,9 +15,9 @@
             <el-button type="primary" link @click="markAllRead" :disabled="unreadCount === 0">
               全部标为已读
             </el-button>
-            <el-button type="danger" link @click="clearAll" :disabled="notifications.length === 0">
+            <!-- <el-button type="danger" link @click="clearAll" :disabled="notifications.length === 0">
               清空通知
-            </el-button>
+            </el-button> -->
           </div>
         </div>
 
@@ -31,18 +31,23 @@
           </el-tab-pane>
         </el-tabs>
 
+        <!-- Loading state -->
+        <div v-if="loading" class="loading-container">
+          <el-skeleton :rows="5" animated />
+        </div>
+
         <!-- 通知列表 -->
-        <div class="notify-list" v-if="filteredList.length > 0">
+        <div class="notify-list" v-else-if="notifications.length > 0">
           <div
-            v-for="item in filteredList"
+            v-for="item in notifications"
             :key="item.id"
             class="notify-item"
             :class="{ unread: !item.isRead }"
             @click="handleClick(item)"
           >
             <div class="notify-icon-wrap">
-              <el-icon :class="['notify-icon', item.type]" :size="22">
-                <component :is="iconMap[item.type]" />
+              <el-icon :class="['notify-icon', 'system']" :size="22">
+                <component :is="iconMap['system']" />
               </el-icon>
               <span v-if="!item.isRead" class="unread-dot" />
             </div>
@@ -70,13 +75,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Bell, ChatDotRound, Pointer, Warning, InfoFilled, Close } from '@element-plus/icons-vue'
+import { getNoticePage, addNoticeRead } from '@/api/notice'
+import { useUserStore } from '@/stores/user.ts'
 
 const router = useRouter()
+const userStore = useUserStore()
 const activeTab = ref('all')
+const loading = ref(false)
 
 const iconMap: Record<string, any> = {
   system: Bell,
@@ -86,41 +95,100 @@ const iconMap: Record<string, any> = {
   info: InfoFilled
 }
 
-const notifications = ref([
-  { id: 1, type: 'system', title: '系统公告', content: '小鸟论坛 v2.0 正式上线，新增 AI 审核、分类管理等功能，欢迎体验！', time: '2026-03-15 10:00:00', isRead: false, link: '/' },
-  { id: 2, type: 'comment', title: '新评论', content: '用户「李四」评论了你的文章《基于深度学习的图像识别研究》', time: '2026-03-14 09:30:00', isRead: false, link: '/paper/1' },
-  { id: 3, type: 'like', title: '获得点赞', content: '用户「王五」点赞了你的文章《智能交通系统的设计与实现》', time: '2026-03-13 16:20:00', isRead: false, link: '/paper/2' },
-  { id: 4, type: 'warning', title: '内容警告', content: '你的评论因包含不当内容已被管理员隐藏，请遵守社区规范。', time: '2026-03-12 11:00:00', isRead: true, link: '' },
-  { id: 5, type: 'system', title: '账号安全提醒', content: '检测到你的账号在新设备登录，如非本人操作请及时修改密码。', time: '2026-03-10 08:45:00', isRead: true, link: '/change-password' },
-  { id: 6, type: 'like', title: '获得收藏', content: '用户「赵六」收藏了你的文章《大学生消费行为分析》', time: '2026-03-09 14:10:00', isRead: true, link: '/paper/3' },
-])
+const notifications = ref<any[]>([])
 
 const unreadCount = computed(() => notifications.value.filter(n => !n.isRead).length)
 
-const filteredList = computed(() =>
-  activeTab.value === 'unread'
-    ? notifications.value.filter(n => !n.isRead)
-    : notifications.value
-)
+// Fetch notifications from backend
+const fetchNotifications = async () => {
+  if (!userStore.userInfo?.id) {
+    ElMessage.warning('请先登录')
+    return
+  }
 
-const handleClick = (item: any) => {
+  loading.value = true
+  try {
+    const params: Record<string, unknown> = {
+      userId: userStore.userInfo.id,
+      pageNo: 1,
+      pageSize: 100
+    }
+
+    // Only add isRead parameter if filtering by unread
+    if (activeTab.value === 'unread') {
+      params.isRead = '否'
+    }
+
+    const res = await getNoticePage(params)
+    
+    if (res) {
+      // Map backend data to frontend structure
+      notifications.value = res.map((item: Record<string, unknown>) => ({
+        id: item.id,
+        type: item.type || 'info',
+        title: item.title || '',
+        content: item.context || '',
+        time: item.createTime || '',
+        isRead: item.isRead === '是',
+        link: '' // Backend doesn't provide link, you may need to generate it based on type
+      }))
+    } else {
+      notifications.value = []
+    }
+  } catch (error: unknown) {
+    console.error('Failed to fetch notifications:', error)
+    const errorMessage = error instanceof Error ? error.message : '获取通知失败'
+    ElMessage.error(errorMessage)
+    notifications.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// Watch for tab changes to refetch data
+watch(activeTab, () => {
+  fetchNotifications()
+})
+
+const handleClick = (item: Record<string, unknown>) => {
   item.isRead = true
-  if (item.link) router.push(item.link)
+  // You may need to call a backend API to mark as read
+  if (item.link) router.push(item.link as string)
 }
 
 const markAllRead = () => {
-  notifications.value.forEach(n => { n.isRead = true })
+  // You may need to call a backend API to mark all as read
+  notifications.value.forEach(n => { 
+    n.isRead = true
+    addNoticeRead({
+      noticeId: n.id,
+      userId: userStore.userInfo?.id || 0,
+      isRead: '是'
+    })
+  })
   ElMessage.success('已全部标为已读')
 }
 
 const deleteOne = (id: number) => {
+  // You may need to call a backend API to delete
   notifications.value = notifications.value.filter(n => n.id !== id)
+  addNoticeRead({
+    noticeId: id,
+    userId: userStore.userInfo?.id || 0,
+    isRead: '是'
+  })
 }
 
 const clearAll = () => {
+  // You may need to call a backend API to clear all
   notifications.value = []
   ElMessage.success('已清空所有通知')
 }
+
+// Fetch notifications on mount
+onMounted(() => {
+  fetchNotifications()
+})
 </script>
 
 <style scoped>
@@ -178,6 +246,10 @@ const clearAll = () => {
 
 .tab-badge { margin-left: 6px; }
 
+.loading-container {
+  padding: 20px 0;
+}
+
 .notify-list { display: flex; flex-direction: column; }
 
 .notify-item {
@@ -194,7 +266,7 @@ const clearAll = () => {
 
 .notify-item:last-child { border-bottom: none; }
 
-.notify-item:hover { background-color: #f5f7fa; }
+.notify-item:hover { background-color: #f5f7f5; }
 
 .notify-item.unread { background-color: #f0f7ff; }
 .notify-item.unread:hover { background-color: #e6f0fd; }

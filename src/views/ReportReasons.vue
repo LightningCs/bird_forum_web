@@ -3,8 +3,8 @@
     <!-- ================== 搜索卡片 ================== -->
     <el-card shadow="never" class="search-card">
       <el-form :inline="true" :model="searchForm" ref="searchFormRef" class="search-form" label-width="80px">
-        <el-form-item label="原因内容" prop="content">
-          <el-input v-model="searchForm.content" placeholder="请输入举报原因关键字" clearable />
+        <el-form-item label="原因内容" prop="context">
+          <el-input v-model="searchForm.context" placeholder="请输入举报原因关键字" clearable />
         </el-form-item>
 
         <el-form-item label="状态" prop="status">
@@ -38,7 +38,7 @@
       >
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column prop="id" label="ID" width="80" align="center" />
-        <el-table-column prop="content" label="举报原因" min-width="280" show-overflow-tooltip />
+        <el-table-column prop="context" label="举报原因" min-width="280" show-overflow-tooltip />
         <el-table-column label="状态" width="100" align="center">
           <template #default="scope">
             <el-tag v-if="scope.row.status === '启用'" type="success">启用</el-tag>
@@ -85,9 +85,9 @@
       @closed="resetDialogForm"
     >
       <el-form :model="dialogForm" :rules="dialogRules" ref="dialogFormRef" label-width="80px">
-        <el-form-item label="原因内容" prop="content">
+        <el-form-item label="原因内容" prop="context">
           <el-input
-            v-model="dialogForm.content"
+            v-model="dialogForm.context"
             type="textarea"
             :rows="3"
             placeholder="请输入举报原因内容"
@@ -115,18 +115,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete, CircleClose, CircleCheck } from '@element-plus/icons-vue'
-
-// ================== 默认数据 ==================
-const DEFAULT_DATA = [
-  { id: 1, content: '包含色情、暴力等违法违规内容', useCount: 128, status: '启用', createTime: '2026-01-01 10:00:00' },
-  { id: 2, content: '恶意广告或垃圾信息', useCount: 95, status: '启用', createTime: '2026-01-02 11:00:00' },
-  { id: 3, content: '侵犯他人隐私或个人信息', useCount: 67, status: '启用', createTime: '2026-01-03 09:30:00' },
-  { id: 4, content: '散布谣言或虚假信息', useCount: 54, status: '启用', createTime: '2026-01-04 14:20:00' },
-  { id: 5, content: '抄袭或侵犯版权', useCount: 43, status: '启用', createTime: '2026-01-05 08:45:00' },
-  { id: 6, content: '人身攻击或网络暴力', useCount: 38, status: '启用', createTime: '2026-01-06 16:00:00' },
-  { id: 7, content: '政治敏感或违反法律法规', useCount: 29, status: '启用', createTime: '2026-01-07 10:30:00' },
-  { id: 8, content: '其他原因', useCount: 12, status: '禁用', createTime: '2026-01-08 13:00:00' },
-]
+import { getReportReasonList, updateReportReason, batchDeleteReportReasons, deleteReportReason } from '@/api/report'
 
 // ================== 状态定义 ==================
 const loading = ref(false)
@@ -135,62 +124,107 @@ const searchFormRef = ref()
 const dialogFormRef = ref()
 const dialogVisible = ref(false)
 const dialogMode = ref<'add' | 'edit'>('add')
-let nextId = DEFAULT_DATA.length + 1
 
-const searchForm = reactive({ content: '', status: '' })
-const pagination = reactive({ currentPage: 1, pageSize: 10, total: 0 })
+const searchForm = reactive({
+  context: '',
+  status: ''
+})
+
+const pagination = reactive({
+  currentPage: 1,
+  pageSize: 10,
+  total: 0
+})
+
 const selectedRows = ref<any[]>([])
-const allData = ref<any[]>([...DEFAULT_DATA])
 const tableData = ref<any[]>([])
 
-const dialogForm = reactive({ id: null as number | null, content: '', status: '启用' })
+const dialogForm = reactive({
+  id: null as number | null,
+  context: '',
+  status: '启用' as string
+})
+
 const dialogRules = {
-  content: [{ required: true, message: '请输入举报原因内容', trigger: 'blur' }],
-  status:  [{ required: true, message: '请选择状态', trigger: 'change' }]
+  context: [{ required: true, message: '请输入举报原因内容', trigger: 'blur' }],
+  status: [{ required: true, message: '请选择状态', trigger: 'change' }]
 }
 
-// ================== 本地筛选分页 ==================
+// ================== 后端API调用 ==================
 
-const applyFilter = () => {
-  let filtered = allData.value
-  if (searchForm.content) {
-    filtered = filtered.filter(item => item.content.includes(searchForm.content))
+// 加载举报原因列表
+const loadReportReasonList = async () => {
+  loading.value = true
+  try {
+    const params: any = {
+      pageNo: pagination.currentPage,
+      pageSize: pagination.pageSize
+    }
+    if (searchForm.context) params.context = searchForm.context
+    if (searchForm.status) params.status = searchForm.status
+
+    const res = await getReportReasonList(params)
+    tableData.value = res || []
+    pagination.total = res.length || 0
+  } catch (error) {
+    ElMessage.error('获取举报原因列表失败')
+  } finally {
+    loading.value = false
   }
-  if (searchForm.status) {
-    filtered = filtered.filter(item => item.status === searchForm.status)
-  }
-  pagination.total = filtered.length
-  const start = (pagination.currentPage - 1) * pagination.pageSize
-  tableData.value = filtered.slice(start, start + pagination.pageSize)
 }
 
-onMounted(() => applyFilter())
+onMounted(() => {
+  loadReportReasonList()
+})
 
 // ================== 搜索与分页 ==================
 
-const handleSearch = () => { pagination.currentPage = 1; applyFilter() }
-const resetSearch = () => { searchFormRef.value?.resetFields(); handleSearch() }
-const handleSelectionChange = (val: any[]) => { selectedRows.value = val }
-const handleSizeChange = (val: number) => { pagination.pageSize = val; applyFilter() }
-const handleCurrentChange = (val: number) => { pagination.currentPage = val; applyFilter() }
+const handleSearch = () => {
+  pagination.currentPage = 1
+  loadReportReasonList()
+}
 
-// ================== Dialog ==================
+const resetSearch = () => {
+  if (searchFormRef.value) {
+    searchFormRef.value.resetFields()
+  }
+  handleSearch()
+}
+
+const handleSelectionChange = (val: any[]) => {
+  selectedRows.value = val
+}
+
+const handleSizeChange = (val: number) => {
+  pagination.pageSize = val
+  loadReportReasonList()
+}
+
+const handleCurrentChange = (val: number) => {
+  pagination.currentPage = val
+  loadReportReasonList()
+}
+
+// ================== Dialog 操作 ==================
 
 const openDialog = (row?: any) => {
   if (row) {
     dialogMode.value = 'edit'
     dialogForm.id = row.id
-    dialogForm.content = row.content
+    dialogForm.context = row.context
     dialogForm.status = row.status
   } else {
     dialogMode.value = 'add'
+    dialogForm.id = null
+    dialogForm.context = ''
+    dialogForm.status = '启用'
   }
   dialogVisible.value = true
 }
 
 const resetDialogForm = () => {
   dialogForm.id = null
-  dialogForm.content = ''
+  dialogForm.context = ''
   dialogForm.status = '启用'
   dialogFormRef.value?.clearValidate()
 }
@@ -199,22 +233,17 @@ const handleSubmit = async () => {
   await dialogFormRef.value?.validate()
   submitLoading.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 300))
-    if (dialogMode.value === 'add') {
-      allData.value.unshift({
-        id: nextId++,
-        content: dialogForm.content,
-        useCount: 0,
-        status: dialogForm.status,
-        createTime: new Date().toLocaleString('sv').replace('T', ' ')
-      })
-    } else {
-      const target = allData.value.find(item => item.id === dialogForm.id)
-      if (target) { target.content = dialogForm.content; target.status = dialogForm.status }
+    const data = {
+      id: dialogForm.id,
+      context: dialogForm.context,
+      status: dialogForm.status
     }
+    const res = await updateReportReason(data)
     ElMessage.success(dialogMode.value === 'add' ? '新增成功' : '编辑成功')
     dialogVisible.value = false
-    applyFilter()
+    loadReportReasonList()
+  } catch (error) {
+    ElMessage.error(dialogMode.value === 'add' ? '新增失败' : '编辑失败')
   } finally {
     submitLoading.value = false
   }
@@ -222,31 +251,58 @@ const handleSubmit = async () => {
 
 // ================== 行内操作 ==================
 
-const handleToggleStatus = (row: any) => {
+const handleToggleStatus = async (row: any) => {
   const action = row.status === '启用' ? '禁用' : '启用'
   ElMessageBox.confirm(`确定要${action}该举报原因吗？`, `${action}确认`, {
-    confirmButtonText: `确定${action}`, cancelButtonText: '取消', type: 'warning'
-  }).then(() => { row.status = action; ElMessage.success(`已${action}`) }).catch(() => {})
+    confirmButtonText: `确定${action}`,
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      const data = {
+        id: row.id,
+        context: row.context,
+        status: action
+      }
+      const res = await updateReportReason(data)
+      ElMessage.success(`已${action}`)
+      loadReportReasonList()
+    } catch (error) {
+      ElMessage.error(`${action}失败`)
+    }
+  }).catch(() => {})
 }
 
 const handleDelete = (row: any) => {
-  ElMessageBox.confirm(`确定要删除举报原因「${row.content}」吗？`, '删除确认', {
-    confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'error'
-  }).then(() => {
-    allData.value = allData.value.filter(item => item.id !== row.id)
-    ElMessage.success('删除成功')
-    applyFilter()
+  ElMessageBox.confirm(`确定要删除举报原因「${row.context}」吗？`, '删除确认', {
+    confirmButtonText: '确定删除',
+    cancelButtonText: '取消',
+    type: 'error'
+  }).then(async () => {
+    try {
+      const res = await deleteReportReason(row.id)
+      ElMessage.success('删除成功')
+      loadReportReasonList()
+    } catch (error) {
+      ElMessage.error('删除失败')
+    }
   }).catch(() => {})
 }
 
 const handleBatchDelete = () => {
   ElMessageBox.confirm(`确定要批量删除选中的 ${selectedRows.value.length} 条举报原因吗？`, '批量删除', {
-    confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'error'
-  }).then(() => {
-    const ids = new Set(selectedRows.value.map(r => r.id))
-    allData.value = allData.value.filter(item => !ids.has(item.id))
-    ElMessage.success(`已删除 ${ids.size} 条举报原因`)
-    applyFilter()
+    confirmButtonText: '确定删除',
+    cancelButtonText: '取消',
+    type: 'error'
+  }).then(async () => {
+    const ids = selectedRows.value.map(r => r.id)
+    try {
+      const res = await batchDeleteReportReasons(ids)
+      ElMessage.success(`已删除 ${ids.length} 条举报原因`)
+      loadReportReasonList()
+    } catch (error) {
+      ElMessage.error('批量删除失败')
+    }
   }).catch(() => {})
 }
 </script>
@@ -265,7 +321,10 @@ const handleBatchDelete = () => {
   margin-right: 20px;
 }
 
-.table-card { border-radius: 8px; flex: 1; }
+.table-card {
+  border-radius: 8px;
+  flex: 1;
+}
 
 .table-header-actions {
   margin-bottom: 15px;
@@ -279,5 +338,7 @@ const handleBatchDelete = () => {
   justify-content: flex-end;
 }
 
-:deep(.el-tag) { border-radius: 4px; }
+:deep(.el-tag) {
+  border-radius: 4px;
+}
 </style>

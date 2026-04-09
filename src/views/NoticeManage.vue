@@ -4,11 +4,11 @@
     <el-card shadow="never" class="search-card">
       <el-form :inline="true" :model="searchForm" ref="searchFormRef" class="search-form" label-width="80px">
         <el-form-item label="通知标题" prop="title">
-          <el-input v-model="searchForm.title" placeholder="请输入标题关键字" clearable />
+          <el-input v-model="searchForm.title" placeholder="请输入通知标题" clearable />
         </el-form-item>
 
-        <el-form-item label="通知内容" prop="content">
-          <el-input v-model="searchForm.content" placeholder="请输入内容关键字" clearable />
+        <el-form-item label="通知内容" prop="context">
+          <el-input v-model="searchForm.context" placeholder="请输入内容关键字" clearable />
         </el-form-item>
 
         <el-form-item label="通知类型" prop="type">
@@ -48,11 +48,11 @@
 
         <el-table-column label="内容" min-width="280" show-overflow-tooltip>
           <template #default="scope">
-            <span class="content-preview">{{ scope.row.content }}</span>
+            <span class="content-preview">{{ scope.row.context }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="creator" label="创建者" width="120" align="center" />
+        <el-table-column prop="createBy" label="创建者" width="120" align="center" />
         <el-table-column prop="createTime" label="创建时间" width="160" align="center" sortable />
 
         <el-table-column label="操作" width="220" align="center" fixed="right">
@@ -100,9 +100,9 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="通知内容" prop="content">
+        <el-form-item label="通知内容" prop="context">
           <el-input
-            v-model="dialogForm.content"
+            v-model="dialogForm.context"
             type="textarea"
             :rows="5"
             placeholder="请输入通知内容"
@@ -126,6 +126,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete, RefreshLeft } from '@element-plus/icons-vue'
+import { getNoticeList, addNotice, revokeNotice, deleteNotice } from '@/api/notice'
 
 // ================== 类型标签映射 ==================
 const typeTagMap: Record<string, { tagType: string }> = {
@@ -135,15 +136,6 @@ const typeTagMap: Record<string, { tagType: string }> = {
   '功能更新': { tagType: 'warning' }
 }
 
-// ================== 默认数据 ==================
-const DEFAULT_DATA = [
-  { id: 1, title: '小鸟论坛 v2.0 正式上线', content: '小鸟论坛 v2.0 正式上线，新增 AI 审核、分类管理、通知管理等功能，欢迎体验！', type: '系统公告', creator: '超管张三', createTime: '2026-03-15 10:00:00' },
-  { id: 2, title: '春季学术交流活动开始报名', content: '2026年春季学术交流活动现已开放报名，欢迎各位同学踊跃参与，截止日期为4月1日。', type: '活动通知', creator: '李四', createTime: '2026-03-14 09:30:00' },
-  { id: 3, title: '账号安全加固通知', content: '为保障账号安全，系统已升级密码策略，请所有用户在下次登录时更新密码，密码长度不少于8位。', type: '安全提醒', creator: '超管张三', createTime: '2026-03-12 11:00:00' },
-  { id: 4, title: '富文本编辑器功能上线', content: '文章发布页面现已支持富文本编辑，可插入图片、代码块、表格等内容，欢迎使用。', type: '功能更新', creator: '王五', createTime: '2026-03-10 14:20:00' },
-  { id: 5, title: '五一假期系统维护公告', content: '五一假期期间（5月1日 00:00 - 5月2日 06:00）系统将进行例行维护，届时服务暂停，请提前做好安排。', type: '系统公告', creator: '超管张三', createTime: '2026-03-08 16:00:00' },
-]
-
 // ================== 状态定义 ==================
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -151,52 +143,101 @@ const searchFormRef = ref()
 const dialogFormRef = ref()
 const dialogVisible = ref(false)
 const dialogMode = ref<'add' | 'edit'>('add')
-let nextId = DEFAULT_DATA.length + 1
 
-const searchForm = reactive({ title: '', content: '', type: '' })
-const pagination = reactive({ currentPage: 1, pageSize: 10, total: 0 })
-const allData = ref<any[]>([...DEFAULT_DATA])
+const searchForm = reactive({
+  title: '',
+  context: '',
+  type: ''
+})
+
+const pagination = reactive({
+  currentPage: 1,
+  pageSize: 10,
+  total: 0
+})
+
 const tableData = ref<any[]>([])
 
 const dialogForm = reactive({
   id: null as number | null,
   title: '',
   type: '',
-  content: ''
+  context: ''
 })
 
 const dialogRules = {
-  title:   [{ required: true, message: '请输入通知标题', trigger: 'blur' }],
-  type:    [{ required: true, message: '请选择通知类型', trigger: 'change' }],
-  content: [{ required: true, message: '请输入通知内容', trigger: 'blur' }]
+  title: [{ required: true, message: '请输入通知标题', trigger: 'blur' }],
+  type: [{ required: true, message: '请选择通知类型', trigger: 'change' }],
+  context: [{ required: true, message: '请输入通知内容', trigger: 'blur' }]
 }
 
-// ================== 本地筛选分页 ==================
-const applyFilter = () => {
-  let filtered = allData.value
-  if (searchForm.title)   filtered = filtered.filter(i => i.title.includes(searchForm.title))
-  if (searchForm.content) filtered = filtered.filter(i => i.content.includes(searchForm.content))
-  if (searchForm.type)    filtered = filtered.filter(i => i.type === searchForm.type)
-  pagination.total = filtered.length
-  const start = (pagination.currentPage - 1) * pagination.pageSize
-  tableData.value = filtered.slice(start, start + pagination.pageSize)
+// ================== 后端API调用 ==================
+
+// 加载通知列表
+const loadNoticeList = async () => {
+  loading.value = true
+  try {
+    const params: any = {
+      pageNo: pagination.currentPage,
+      pageSize: pagination.pageSize
+    }
+    if (searchForm.title) params.title = searchForm.title
+    if (searchForm.context) params.context = searchForm.context
+    if (searchForm.type) params.type = searchForm.type
+
+    const res = await getNoticeList(params)
+    tableData.value = res || []
+    pagination.total = res.length || 0
+  } catch {
+    ElMessage.error('获取通知列表失败')
+  } finally {
+    loading.value = false
+  }
 }
 
-onMounted(() => applyFilter())
+onMounted(() => {
+  loadNoticeList()
+})
 
 // ================== 搜索与分页 ==================
-const handleSearch = () => { pagination.currentPage = 1; applyFilter() }
-const resetSearch = () => { searchFormRef.value?.resetFields(); handleSearch() }
-const handleSizeChange = (val: number) => { pagination.pageSize = val; applyFilter() }
-const handleCurrentChange = (val: number) => { pagination.currentPage = val; applyFilter() }
 
-// ================== Dialog ==================
+const handleSearch = () => {
+  pagination.currentPage = 1
+  loadNoticeList()
+}
+
+const resetSearch = () => {
+  if (searchFormRef.value) {
+    searchFormRef.value.resetFields()
+  }
+  handleSearch()
+}
+
+const handleSizeChange = (val: number) => {
+  pagination.pageSize = val
+  loadNoticeList()
+}
+
+const handleCurrentChange = (val: number) => {
+  pagination.currentPage = val
+  loadNoticeList()
+}
+
+// ================== Dialog 操作 ==================
+
 const openDialog = (row?: any) => {
   if (row) {
     dialogMode.value = 'edit'
-    Object.assign(dialogForm, { id: row.id, title: row.title, type: row.type, content: row.content })
+    dialogForm.id = row.id
+    dialogForm.title = row.title
+    dialogForm.type = row.type
+    dialogForm.context = row.context
   } else {
     dialogMode.value = 'add'
+    dialogForm.id = null
+    dialogForm.title = ''
+    dialogForm.type = ''
+    dialogForm.context = ''
   }
   dialogVisible.value = true
 }
@@ -205,7 +246,7 @@ const resetDialogForm = () => {
   dialogForm.id = null
   dialogForm.title = ''
   dialogForm.type = ''
-  dialogForm.content = ''
+  dialogForm.context = ''
   dialogFormRef.value?.clearValidate()
 }
 
@@ -213,39 +254,37 @@ const handleSubmit = async () => {
   await dialogFormRef.value?.validate()
   submitLoading.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 300))
-    if (dialogMode.value === 'add') {
-      allData.value.unshift({
-        id: nextId++,
-        title: dialogForm.title,
-        type: dialogForm.type,
-        content: dialogForm.content,
-        creator: '当前管理员',
-        createTime: new Date().toLocaleString('sv').replace('T', ' ')
-      })
-      ElMessage.success('通知已发布')
-    } else {
-      const target = allData.value.find(i => i.id === dialogForm.id)
-      if (target) Object.assign(target, { title: dialogForm.title, type: dialogForm.type, content: dialogForm.content })
-      ElMessage.success('通知已更新')
+    const data = {
+      title: dialogForm.title,
+      type: dialogForm.type,
+      context: dialogForm.context
     }
+    const res = await addNotice(data)
+    ElMessage.success(dialogMode.value === 'add' ? '发布成功' : '保存成功')
     dialogVisible.value = false
-    applyFilter()
+    loadNoticeList()
+  } catch {
+    ElMessage.error(dialogMode.value === 'add' ? '发布失败' : '保存失败')
   } finally {
     submitLoading.value = false
   }
 }
 
 // ================== 行内操作 ==================
+
 const handleRevoke = (row: any) => {
   ElMessageBox.confirm(`确定要撤回通知「${row.title}」吗？撤回后用户将无法看到此通知。`, '撤回确认', {
     confirmButtonText: '确定撤回',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    allData.value = allData.value.filter(i => i.id !== row.id)
-    ElMessage.success('通知已撤回')
-    applyFilter()
+  }).then(async () => {
+    try {
+      const res = await revokeNotice(row.id)
+      ElMessage.success('通知已撤回')
+      loadNoticeList()
+    } catch {
+      ElMessage.error('撤回失败')
+    }
   }).catch(() => {})
 }
 
@@ -254,10 +293,14 @@ const handleDelete = (row: any) => {
     confirmButtonText: '确定删除',
     cancelButtonText: '取消',
     type: 'error'
-  }).then(() => {
-    allData.value = allData.value.filter(i => i.id !== row.id)
-    ElMessage.success('删除成功')
-    applyFilter()
+  }).then(async () => {
+    try {
+      const res = await deleteNotice(row.id)
+      ElMessage.success('删除成功')
+      loadNoticeList()
+    } catch {
+      ElMessage.error('删除失败')
+    }
   }).catch(() => {})
 }
 </script>
@@ -269,14 +312,19 @@ const handleDelete = (row: any) => {
   gap: 20px;
 }
 
-.search-card { border-radius: 8px; }
+.search-card {
+  border-radius: 8px;
+}
 
 .search-form .el-form-item {
   margin-bottom: 15px;
   margin-right: 20px;
 }
 
-.table-card { border-radius: 8px; flex: 1; }
+.table-card {
+  border-radius: 8px;
+  flex: 1;
+}
 
 .table-header-actions {
   margin-bottom: 15px;
@@ -287,6 +335,11 @@ const handleDelete = (row: any) => {
 .content-preview {
   color: #606266;
   font-size: 13px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .pagination-container {
@@ -295,5 +348,7 @@ const handleDelete = (row: any) => {
   justify-content: flex-end;
 }
 
-:deep(.el-tag) { border-radius: 4px; }
+:deep(.el-tag) {
+  border-radius: 4px;
+}
 </style>

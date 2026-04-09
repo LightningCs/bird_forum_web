@@ -164,14 +164,11 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getArticleList, getHotArticleList, getCategoryList, getUserById } from '@/api/index'
 import { Search, ChatLineRound, UserFilled, User, Lock, Clock, SwitchButton, Bell } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user.ts'
 
 const router = useRouter()
 
-const currentUser = ref({
-  id: 1, // 当前登录用户的ID
-  name: '我',
-  avatar: 'https://via.placeholder.com/40x40?text=我'
-})
+const currentUser = ref({})
 
 // ================== 原有数据与方法 (保持不变) ==================
 const categories = ref([ { name: '计算机科学', icon: 'https://via.placeholder.com/20x20?text=CS' }, { name: '机械工程', icon: 'https://via.placeholder.com/20x20?text=ME' }, { name: '经济学', icon: 'https://via.placeholder.com/20x20?text=EC' }, { name: '管理学', icon: 'https://via.placeholder.com/20x20?text=MGT' }, { name: '心理学', icon: 'https://via.placeholder.com/20x20?text=PSY' } ])
@@ -180,39 +177,36 @@ const articles = ref([
   { id: 2, title: '智能交通系统的设计与实现', publisherName: '李四', avatar: 'https://via.placeholder.com/40x40?text=L', summary: '本项目开发了一个城市交通调度系统，采用物联网技术进行实时监控。', category: '自动化学院', createTime: '2025-03-28', likeNum: 122, image: 'https://via.placeholder.com/400x200?text=交通图' } ])
 const hotArticles = ref([ { id: 101, title: 'AI在医疗诊断中的应用', viewNum: '12.3万' }, { id: 102, title: '区块链技术发展现状', viewNum: '9.8万' }, { id: 103, title: '新能源汽车电池寿命预测', viewNum: '8.2万' }, { id: 104, title: '高校学生心理压力调研', viewNum: '7.5万' } ])
 const popularCategories = ref([ { name: '人工智能', articleCount: '156', icon: 'https://via.placeholder.com/20x20?text=AI' }, { name: '大数据', articleCount: '132', icon: 'https://via.placeholder.com/20x20?text=BD' }, { name: '物联网', articleCount: '98', icon: 'https://via.placeholder.com/20x20?text=IoT' }, { name: '金融学', articleCount: '85', icon: 'https://via.placeholder.com/20x20?text=FIN' } ])
-
+const userStore = useUserStore()
 
 onMounted(async () => {
-  // 获取用户信息
-  currentUser.value = await getUserById(1)
+  isLoggedIn.value = userStore.isLoggedIn
+  if (isLoggedIn.value) {
+    currentUser.value = userStore.userInfo
+  }
   // 获取分类列表
   categories.value = await getCategoryList({
     'pageNo': 0,
-    'pageSize': 1,
-    'pageNum': 10
+    'pageSize': 10,
   })
   console.log(categories)
   // 获取最新文章列表
   articles.value = await getArticleList({
-    'pageNo': 0,
-    'pageSize': 1,
-    'pageNum': 10
+    'pageNo': 1,
+    'pageSize': 10,
   })
   // 获取热门文章
   hotArticles.value = await getHotArticleList()
   // 获取热门分类
   popularCategories.value = await getCategoryList({
-    'pageNo': 0,
-    'pageSize': 1,
-    'pageNum': 10
+    'pageNo': 1,
+    'pageSize': 10,
   })
 })
 
 // ================== 新增：登录状态与用户信息 ==================
 // 为了让你直接看到效果，这里默认设为 true (已登录)
-const isLoggedIn = ref(true) 
-
-
+const isLoggedIn = ref(false) 
 
 // ================== 顶部导航交互事件 ==================
 // 跳转好友列表
@@ -243,6 +237,7 @@ const handleCommand = (command: string) => {
       type: 'warning',
     }).then(() => {
       isLoggedIn.value = false
+      userStore.logout()
       ElMessage.success('已安全退出登录')
     }).catch(() => {})
   }

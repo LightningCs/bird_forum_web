@@ -1,5 +1,6 @@
-// src/router/index.js
+// src/router/index.ts
 import { createRouter, createWebHistory } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import Admin from '@/views/AdminLayout.vue'
 import AdminLogin from '@/views/AdminLogin.vue'
 import ChangePassword from '@/views/ChangePassword.vue'
@@ -14,79 +15,93 @@ import Register from '@/views/Register.vue'
 import Search from '@/views/Search.vue'
 import SubmitPaper from '@/views/SubmitPaper.vue'
 import User from '@/views/User.vue'
+import { useUserStore } from '@/stores/user.ts'
 
 const routes = [
   {
     path: '/',
     name: 'Home',
     component: Home,
-    meta: { title: '毕业论文系统 - 首页' }
+    meta: { title: '毕业论文系统 - 首页', requiresAuth: false }
   },
   {
     path: '/login',
     name: 'Login',
-    component: Login
+    component: Login,
+    meta: { requiresAuth: false }
   },
   {
     path: '/register',
     name: 'Register',
-    component: Register
+    component: Register,
+    meta: { requiresAuth: false }
   },
   {
     path: '/chat',
     name: 'Chat',
-    component: Chat
+    component: Chat,
+    meta: { requiresAuth: true }
   },
   {
     path: '/search',
     name: 'Search',
-    component: Search
+    component: Search,
+    meta: { requiresAuth: false }
   },
   {
     path: '/submit-paper',
     name: 'SubmitPaper',
-    component: SubmitPaper
+    component: SubmitPaper,
+    meta: { requiresAuth: true }
   },
   {
     path: '/paper/:id',
     name: 'Paper',
-    component: Paper
+    component: Paper,
+    meta: { requiresAuth: false }
   },
   {
     path: '/user/:id',
     name: 'User',
-    component: User
+    component: User,
+    meta: { requiresAuth: false }
   },
   {
     path: '/friends',
     name: 'Friends',
-    component: Friends
+    component: Friends,
+    meta: { requiresAuth: true }
   },
   {
     path: '/change-password',
     name: 'ChangePassword',
-    component: ChangePassword
+    component: ChangePassword,
+    meta: { requiresAuth: true }
   },
   {
     path: '/history',
     name: 'History',
-    component: History
+    component: History,
+    meta: { requiresAuth: true }
   },
   {
     path: '/notifications',
     name: 'Notifications',
-    component: Notifications
+    component: Notifications,
+    meta: { requiresAuth: true }
   },
   {
     path: '/admin/login',
     name: 'AdminLogin',
-    component: AdminLogin
+    component: AdminLogin,
+    meta: { requiresAuth: false }
   },
   {
     path: '/admin',
     name: 'Admin',
     redirect: '/admin/dashboard',
     component: Admin,
+    meta: { requiresAuth: false },
     children: [
       {
         path: 'dashboard',
@@ -135,28 +150,32 @@ const routes = [
       }
     ]
   }
-  // 后续可添加其他页面，例如：
-  // {
-  //   path: '/submit-paper',
-  //   name: 'SubmitPaper',
-  //   component: () => import('@/views/SubmitPaper.vue')
-  // },
-  // {
-  //   path: '/login',
-  //   name: 'Login',
-  //   component: () => import('@/views/Login.vue')
-  // }
 ]
 
 const router = createRouter({
-  history: createWebHistory(), // 使用 HTML5 History 模式
+  history: createWebHistory(),
   routes
 })
 
-// 可选：设置页面标题
+// 路由守卫：验证用户是否已登录
 router.beforeEach((to, from, next) => {
-  document.title = to.meta.title || '毕业论文系统'
-  next()
+  const userStore = useUserStore()
+  
+  // 设置页面标题
+  document.title = (to.meta.title as string) || '毕业论文系统'
+  
+  // 检查路由是否需要认证
+  const requiresAuth = to.meta.requiresAuth as boolean
+  
+  if (requiresAuth && !userStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    next({
+      path: '/login',
+      query: { redirect: to.fullPath }
+    })
+  } else {
+    next()
+  }
 })
 
 export default router

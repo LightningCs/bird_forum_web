@@ -121,42 +121,19 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getArticleList, getUserById } from '@/api/index'
 import { Search, User, Lock, Clock, SwitchButton, Bell } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user.ts'
 
 const route = useRoute()
 const router = useRouter()
 const isLoggedIn = ref(false)
 const currentUser = ref({})
+const userStore = useUserStore()
 
 // 状态定义
 const loading = ref(false)
 const searchInputValue = ref('')
 const searchSummaryText = ref('')
 const searchResults = ref([])
-
-// ================== 模拟全局文章库 ==================
-const allMockPapers =[
-  {
-    id: 1, title: '基于深度学习的图像识别研究', author: '张三', avatar: 'https://via.placeholder.com/40x40?text=Z',
-    summary: '本文提出了一种新的卷积神经网络结构，用于提升图像分类准确率。', category: '计算机科学', date: '2025-04-01', views: 892, likes: 156, status: '已审核', image: 'https://via.placeholder.com/400x200?text=文章封面'
-  },
-  {
-    id: 2, title: '智能交通系统的设计与实现', author: '李四', avatar: 'https://via.placeholder.com/40x40?text=L',
-    summary: '本项目开发了一个城市交通调度系统，采用物联网技术进行实时监控。', category: '计算机科学', date: '2025-03-28', views: 734, likes: 122, status: '待审核', image: 'https://via.placeholder.com/400x200?text=交通图'
-  },
-  {
-    id: 3, title: '大学生消费行为分析', author: '王五', avatar: 'https://via.placeholder.com/40x40?text=W',
-    summary: '通过对500名学生的问卷调查，分析其消费习惯和影响因素。', category: '经济学', date: '2025-03-25', views: 610, likes: 98, status: '已审核', image: null
-  },
-  {
-    id: 4, title: '人工智能在医疗诊断中的应用', author: '赵六', avatar: 'https://via.placeholder.com/40x40?text=Z',
-    summary: '探讨AI大模型在早期肿瘤筛查中的准确率和伦理问题。', category: '人工智能', date: '2025-02-15', views: 1250, likes: 300, status: '已审核', image: null
-  },
-  {
-    id: 5, title: '宏观经济学视角下的通货膨胀分析', author: '钱七', avatar: 'https://via.placeholder.com/40x40?text=Q',
-    summary: '结合近十年的经济数据，分析通货膨胀对普通家庭财富的影响。', category: '经济学', date: '2025-01-20', views: 450, likes: 60, status: '已审核', image: 'https://via.placeholder.com/400x200?text=经济图表'
-  }
-]
-// ====================================================
 
 // 执行搜索逻辑
 const performSearch = () => {
@@ -174,19 +151,17 @@ const performSearch = () => {
       searchSummaryText.value = `分类 "${category}" 下的文章`
       searchResults.value = await getArticleList({
         'category': category,
-        'pageNo': 0,
-        'pageSize': 1,
-        'pageNum': 10
+        'pageNo': 1,
+        'pageSize': 100,
       })
     } else {
       // 关键字搜索：匹配标题、作者或摘要
       searchInputValue.value = keyword
-      searchSummaryText.value = keyword === '' ? `全部文章` : `包含关键字 "${keyword}" 的搜索结果`
+      searchSummaryText.value = keyword === '' || keyword === undefined ? `全部文章` : `包含关键字 "${keyword}" 的搜索结果`
       searchResults.value = await getArticleList({
         'keyword': keyword,
-        'pageNo': 0,
-        'pageSize': 1,
-        'pageNum': 10
+        'pageNo': 1,
+        'pageSize': 100
       })
     }
     
@@ -221,7 +196,7 @@ const goToPaperDetail = (id: number) => {
 
 // 生命周期：组件挂载时执行一次搜索
 onMounted(async () => {
-  currentUser.value = await getUserById(1)
+  currentUser.value = userStore.userInfo
 
   if (currentUser.value !== null) {
     isLoggedIn.value = true
@@ -252,6 +227,7 @@ const handleCommand = (command: string) => {
       type: 'warning',
     }).then(() => {
       isLoggedIn.value = false
+      userStore.logout() // 调用用户状态管理的 logout 方法
       ElMessage.success('已安全退出登录')
     }).catch(() => {})
   }
