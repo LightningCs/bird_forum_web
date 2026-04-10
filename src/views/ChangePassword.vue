@@ -109,7 +109,9 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ArrowLeft, Lock, Message, Key, CircleCheck } from '@element-plus/icons-vue'
+import { sendCode, changePassword } from '@/api/user'
 import { useUserStore } from '@/stores/user.ts'
+import { id } from 'element-plus/es/locales.mjs'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -145,7 +147,7 @@ const rules = reactive<FormRules>({
   ],
   code:[
     { required: true, message: '请输入验证码', trigger: 'blur' },
-    { min: 6, max: 6, message: '验证码必须为6位', trigger: 'blur' }
+    { min: 4, max: 4, message: '验证码必须为4位', trigger: 'blur' }
   ],
   newPassword:[
     { required: true, message: '请输入新密码', trigger: 'blur' },
@@ -173,6 +175,7 @@ const sendVerifyCode = () => {
 
   // 模拟发送接口请求
   ElMessage.success(`验证码已发送至 ${pwdForm.value.email}，请查收！`)
+  sendCode(pwdForm.value.email)
   
   // 开启 60 秒倒计时
   countdown.value = 60
@@ -186,26 +189,16 @@ const sendVerifyCode = () => {
 
 // 提交修改逻辑
 const handleSubmit = async () => {
-  if (!pwdForm.value) return
-  
-  await pwdForm.value.validate((valid) => {
-    if (valid) {
-      loading.value = true
-      
-      // 模拟 API 提交请求
-      setTimeout(() => {
-        loading.value = false
-        ElMessage.success('密码修改成功！请使用新密码重新登录')
-        
-        // 安全规范：修改密码后自动跳回登录页，要求重新登录
-        router.push('/login') 
-      }, 1500)
-      
-    } else {
-      ElMessage.error('请检查填写的信息是否有误')
-      return false
-    }
-  })
+  changePassword({
+        id: userStore.userInfo?.id,
+        account: pwdForm.value.email,
+        code: pwdForm.value.code,
+        password: pwdForm.value.newPassword,
+        rePassword: pwdForm.value.confirmPassword
+      })
+  ElMessage.success('密码修改成功，请重新登录')
+  userStore.logout() // 清除用户信息
+  router.push('/login') // 跳转到登录页
 }
 
 // 返回首页

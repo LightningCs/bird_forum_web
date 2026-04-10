@@ -48,3 +48,21 @@ export function getFriendList(id, isFans) {
     method: 'get'
   })
 }
+
+// 发送验证码
+export function sendCode(account) {
+  return request({
+    url: '/mail',
+    method: 'get',
+    params: { account }
+  })
+}
+
+// 修改密码
+export function changePassword(data) {
+  return request({
+    url: '/user/password',
+    method: 'put',
+    data
+  })
+}
