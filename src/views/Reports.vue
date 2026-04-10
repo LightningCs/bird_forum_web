@@ -50,7 +50,7 @@
         </el-table-column>
 
         <el-table-column prop="targetId" label="目标ID" width="90" align="center" />
-        <el-table-column prop="description" label="原因描述" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="remark" label="原因描述" min-width="200" show-overflow-tooltip />
 
         <el-table-column label="状态" width="100" align="center">
           <template #default="scope">
@@ -112,7 +112,7 @@
           <el-descriptions-item label="举报内容" :span="2">{{ currentRow.context }}</el-descriptions-item>
           <el-descriptions-item label="目标类型">{{ currentRow.targetType }}</el-descriptions-item>
           <el-descriptions-item label="目标ID">{{ currentRow.targetId }}</el-descriptions-item>
-          <el-descriptions-item label="原因描述" :span="2">{{ currentRow.description || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="原因描述" :span="2">{{ currentRow.remark || '—' }}</el-descriptions-item>
           <el-descriptions-item label="举报时间" :span="2">{{ currentRow.createTime }}</el-descriptions-item>
         </el-descriptions>
 
@@ -236,7 +236,7 @@ const handleCurrentChange = (val: number) => {
 const handleReview = async (row: any) => {
   try {
     const res = await getReportById(row.id)
-    currentRow.value = res.data
+    currentRow.value = res
     reviewForm.result = ''
     reviewForm.remark = ''
     dialogVisible.value = true

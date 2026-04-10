@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="welcome-box">
-      <h2>👋 欢迎回来，超级管理员</h2>
+      <h2>👋 欢迎回来，超级管理员 admin</h2>
       <p>今天是 {{ currentDate }}，系统运行一切正常。以下是核心数据概览：</p>
     </div>
 
@@ -12,9 +12,9 @@
           <div class="card-content">
             <div class="data-info">
               <div class="card-title">文章发布量</div>
-              <div class="total-num">{{ stats.totalArticles }}</div>
+              <div class="total-num">{{ data.articleCount }}</div>
               <div class="today-num">
-                <span>今日新增</span><span class="up-trend"><el-icon><Top /></el-icon> {{ stats.todayArticles }}</span>
+                <span>今日新增</span><span class="up-trend"><el-icon><Top /></el-icon> {{ data.todayArticleCount }}</span>
               </div>
             </div>
             <div class="icon-box blue-icon"><el-icon><Document /></el-icon></div>
@@ -28,9 +28,9 @@
           <div class="card-content">
             <div class="data-info">
               <div class="card-title">评论发表量</div>
-              <div class="total-num">{{ stats.totalComments }}</div>
+              <div class="total-num">{{ data.commentCount }}</div>
               <div class="today-num">
-                <span>今日新增</span><span class="up-trend"><el-icon><Top /></el-icon> {{ stats.todayComments }}</span>
+                <span>今日新增</span><span class="up-trend"><el-icon><Top /></el-icon> {{ data.todayCommentCount }}</span>
               </div>
             </div>
             <div class="icon-box green-icon"><el-icon><ChatLineRound /></el-icon></div>
@@ -44,7 +44,7 @@
           <div class="card-content">
             <div class="data-info">
               <div class="card-title">待处理举报</div>
-              <div class="total-num text-danger">{{ stats.pendingReports }}</div>
+              <div class="total-num text-danger">{{ data.reportCount }}</div>
               <div class="today-num">
                 <span v-if="stats.pendingReports > 0" style="color: #f56c6c;">需尽快处理！</span>
                 <span v-else style="color: #67c23a;">暂无违规情况</span>
@@ -62,12 +62,15 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Top, Document, ChatLineRound, Warning } from '@element-plus/icons-vue'
+import { getStatisticsData } from '@/api/statisticsData'
 
 const router = useRouter()
 const currentDate = ref('')
-onMounted(() => {
+const data = ref({})
+onMounted(async () => {
   const date = new Date()
   currentDate.value = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
+  data.value = await getStatisticsData()
 })
 
 const stats = ref({ totalArticles: 1285, todayArticles: 12, totalComments: 8432, todayComments: 45, pendingReports: 6 })

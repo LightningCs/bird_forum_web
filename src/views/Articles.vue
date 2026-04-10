@@ -283,12 +283,8 @@ const handleUpdateIllegal = async (row: any, isIllegal: number) => {
   }).then(async () => {
     try {
       const res = await updateArticleIllegal(row.id, isIllegal)
-      if (res.code === 200) {
-        ElMessage.success(`文章已标记为${statusText}`)
-        loadArticleList()
-      } else {
-        ElMessage.error(res.message || '操作失败')
-      }
+      ElMessage.success(`文章已标记为${statusText}`)
+      loadArticleList()
     } catch (error) {
       ElMessage.error('操作失败')
     }
@@ -304,12 +300,8 @@ const handleHide = (row: any) => {
   }).then(async () => {
     try {
       const res = await updateArticleStatus({ id: row.id, status: '不可见' })
-      if (res.code === 200) {
-        ElMessage.success('文章已隐藏')
-        loadArticleList()
-      } else {
-        ElMessage.error(res.message || '操作失败')
-      }
+      ElMessage.success('文章已隐藏')
+      loadArticleList()
     } catch (error) {
       ElMessage.error('操作失败')
     }
@@ -325,12 +317,8 @@ const handleShow = (row: any) => {
   }).then(async () => {
     try {
       const res = await updateArticleStatus({ id: row.id, status: '已发布' })
-      if (res.code === 200) {
-        ElMessage.success('文章已重新发布')
-        loadArticleList()
-      } else {
-        ElMessage.error(res.message || '操作失败')
-      }
+      ElMessage.success('文章已重新发布')
+      loadArticleList()
     } catch (error) {
       ElMessage.error('操作失败')
     }
@@ -349,12 +337,8 @@ const handleBatchHide = () => {
     const ids = selectedRows.value.map(r => r.id)
     try {
       const res = await batchHideArticles(ids)
-      if (res.code === 200) {
-        ElMessage.success(`已隐藏 ${ids.length} 篇文章`)
-        loadArticleList()
-      } else {
-        ElMessage.error(res.message || '批量隐藏失败')
-      }
+      ElMessage.success(`已隐藏 ${ids.length} 篇文章`)
+      loadArticleList()
     } catch (error) {
       ElMessage.error('批量隐藏失败')
     }
@@ -371,12 +355,8 @@ const handleBatchDelete = () => {
     const ids = selectedRows.value.map(r => r.id)
     try {
       const res = await batchDeleteArticles(ids)
-      if (res.code === 200) {
-        ElMessage.success(`已删除 ${ids.length} 篇文章`)
-        loadArticleList()
-      } else {
-        ElMessage.error(res.message || '批量删除失败')
-      }
+      ElMessage.success(`已删除 ${ids.length} 篇文章`)
+      loadArticleList()
     } catch (error) {
       ElMessage.error('批量删除失败')
     }

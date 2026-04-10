@@ -186,14 +186,14 @@ onMounted(async () => {
   }
   // 获取分类列表
   categories.value = await getCategoryList({
-    'pageNo': 0,
+    'pageNo': 1,
     'pageSize': 10,
   })
   console.log(categories)
   // 获取最新文章列表
   articles.value = await getArticleList({
     'pageNo': 1,
-    'pageSize': 10,
+    'pageSize': 100,
   })
   // 获取热门文章
   hotArticles.value = await getHotArticleList()

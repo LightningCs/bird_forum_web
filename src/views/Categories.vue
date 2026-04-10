@@ -98,8 +98,30 @@
       :close-on-click-modal="false"
       @closed="resetDialogForm"
     >
-      <el-form :model="dialogForm" :rules="dialogRules" ref="dialogFormRef" label-width="80px">
-        <el-form-item label="分类名称" prop="name">
+      <el-form :model="dialogForm" :rules="dialogRules" ref="dialogFormRef" label-width="80px">            
+        <el-upload
+          class="image-uploader"
+          drag
+          action="#"
+          :auto-upload="false"
+          :show-file-list="false"
+          :on-change="handleimageChange"
+        >
+          <div v-if="imagePreviewUrl" class="preview-container">
+            <img :src="imagePreviewUrl" class="image-preview" alt="图标预览" />
+            <div class="upload-hover-mask">
+              <el-icon><Edit /></el-icon> 点击更换图标
+            </div>
+          </div>
+          <div v-else class="upload-placeholder">
+            <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+            <div class="el-upload__text">
+              将文件拖到此处，或 <em>点击上传</em>
+            </div>
+            <div class="el-upload__tip">支持 JPG/PNG/WEBP 格式，建议比例 16:9</div>
+          </div>
+        </el-upload>
+        <el-form-item label="分类名称" prop="name" style="margin-top: 20px;">
           <el-input v-model="dialogForm.name" placeholder="请输入分类名称" maxlength="20" show-word-limit />
         </el-form-item>
         <el-form-item label="状态" prop="status">
@@ -121,8 +143,9 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { UploadFile } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete, CircleClose, CircleCheck } from '@element-plus/icons-vue'
-import { getCategoryList, updateCategory, batchDeleteCategories, deleteCategory } from '@/api/category'
+import { getCategoryList, updateCategory, batchDeleteCategories, deleteCategory, saveCategory } from '@/api/category'
 
 // ================== 状态定义 ==================
 const loading = ref(false)
@@ -131,6 +154,8 @@ const searchFormRef = ref()
 const dialogFormRef = ref()
 const dialogVisible = ref(false)
 const dialogMode = ref<'add' | 'edit'>('add')
+// 封面预览 URL
+const imagePreviewUrl = ref('')
 
 const searchForm = reactive({
   name: '',
@@ -148,6 +173,7 @@ const tableData = ref<any[]>([])
 
 const dialogForm = reactive({
   id: null as number | null,
+  icon: null as File | null,
   name: '',
   status: '启用' as string
 })
@@ -155,6 +181,24 @@ const dialogForm = reactive({
 const dialogRules = {
   name: [{ required: true, message: '请输入分类名称', trigger: 'blur' }],
   status: [{ required: true, message: '请选择状态', trigger: 'change' }]
+}
+
+// 处理封面选择 (本地预览)
+const handleimageChange = (uploadFile: UploadFile) => {
+  if (uploadFile.raw) {
+    const isImage = uploadFile.raw.type.startsWith('image/')
+    if (!isImage) {
+      ElMessage.error('封面只能是图片格式!')
+      return
+    }
+    if (uploadFile.raw.size / 1024 / 1024 > 5) {
+      ElMessage.error('封面图片大小不能超过 5MB!')
+      return
+    }
+    
+    dialogForm.icon = uploadFile.raw
+    imagePreviewUrl.value = URL.createObjectURL(uploadFile.raw)
+  }
 }
 
 // ================== 后端API调用 ==================
@@ -220,11 +264,13 @@ const openDialog = (row?: any) => {
     dialogForm.id = row.id
     dialogForm.name = row.name
     dialogForm.status = row.status
+    dialogForm.icon = row.icon || null
   } else {
     dialogMode.value = 'add'
     dialogForm.id = null
     dialogForm.name = ''
     dialogForm.status = '启用'
+    dialogForm.icon = null
   }
   dialogVisible.value = true
 }
@@ -233,6 +279,7 @@ const resetDialogForm = () => {
   dialogForm.id = null
   dialogForm.name = ''
   dialogForm.status = '启用'
+  dialogForm.icon = null,
   dialogFormRef.value?.clearValidate()
 }
 
@@ -240,18 +287,21 @@ const handleSubmit = async () => {
   await dialogFormRef.value?.validate()
   submitLoading.value = true
   try {
-    const data = {
-      name: dialogForm.name,
-      status: dialogForm.status
-    }
-    const res = await updateCategory(data)
-    if (res.code === 200) {
-      ElMessage.success(dialogMode.value === 'add' ? '新增成功' : '编辑成功')
-      dialogVisible.value = false
-      loadCategoryList()
+    const formData = new FormData()
+    formData.append('name', dialogForm.name)
+    formData.append('status', dialogForm.status)
+    formData.append('icon', dialogForm.icon)
+    if (dialogMode.value === 'add') {
+      await saveCategory(formData)
+      ElMessage.success('新增成功')
     } else {
-      ElMessage.error(res.message || '操作失败')
+      formData.append('id', dialogForm.id!.toString())
+      await updateCategory(formData)
+      ElMessage.success('编辑成功')
     }
+    ElMessage.success(dialogMode.value === 'add' ? '新增成功' : '编辑成功')
+    dialogVisible.value = false
+    loadCategoryList()
   } catch (error) {
     ElMessage.error(dialogMode.value === 'add' ? '新增失败' : '编辑失败')
   } finally {
@@ -269,17 +319,13 @@ const handleToggleStatus = async (row: any) => {
     type: 'warning'
   }).then(async () => {
     try {
-      const data = {
-        name: row.name,
-        status: action
-      }
-      const res = await updateCategory(data)
-      if (res.code === 200) {
-        ElMessage.success(`已${action}`)
-        loadCategoryList()
-      } else {
-        ElMessage.error(res.message || `${action}失败`)
-      }
+      const formData = new FormData()
+      formData.append('id', row.id)
+      formData.append('name', row.name)
+      formData.append('status', action)
+      const res = await updateCategory(formData)
+      ElMessage.success(`已${action}`)
+      loadCategoryList()
     } catch (error) {
       ElMessage.error(`${action}失败`)
     }
@@ -294,12 +340,8 @@ const handleDelete = (row: any) => {
   }).then(async () => {
     try {
       const res = await deleteCategory(row.id)
-      if (res.code === 200) {
-        ElMessage.success('删除成功')
-        loadCategoryList()
-      } else {
-        ElMessage.error(res.message || '删除失败')
-      }
+      ElMessage.success('删除成功')
+      loadCategoryList()
     } catch (error) {
       ElMessage.error('删除失败')
     }
@@ -315,12 +357,8 @@ const handleBatchDelete = () => {
     const ids = selectedRows.value.map(r => r.id)
     try {
       const res = await batchDeleteCategories(ids)
-      if (res.code === 200) {
-        ElMessage.success(`已删除 ${ids.length} 个分类`)
-        loadCategoryList()
-      } else {
-        ElMessage.error(res.message || '批量删除失败')
-      }
+      ElMessage.success(`已删除 ${ids.length} 个分类`)
+      loadCategoryList()
     } catch (error) {
       ElMessage.error('批量删除失败')
     }

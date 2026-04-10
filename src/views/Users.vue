@@ -86,7 +86,7 @@
               inactive-value="禁用"
               active-color="#13ce66"
               inactive-color="#ff4949"
-              @change="(val) => handleStatusChange(scope.row, val)"
+              @click="() => handleStatusChange(scope.row, scope.row.status)"
             />
           </template>
         </el-table-column>
@@ -94,7 +94,7 @@
         <!-- 操作列 -->
         <el-table-column label="操作" width="200" align="center" fixed="right">
           <template #default="scope">
-            <el-button type="primary" link :icon="Watch" @click="handleDetail(scope.row)">查看</el-button>
+            <el-button type="primary" link :icon="View" @click="handleDetail(scope.row)">查看</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -137,7 +137,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Delete, Watch } from '@element-plus/icons-vue'
+import { Search, Refresh, Delete, View } from '@element-plus/icons-vue'
 import { getUserList, getUserById, updateUserStatus, batchDeleteUsers } from '@/api/user'
 
 // ================== 状态定义 ==================
@@ -224,7 +224,7 @@ const handleStatusChange = async (row: any, val: string) => {
   const code = val === '启用' ? 0 : 1 // 0-启用, 1-禁用
   
   try {
-    const res = await updateUserStatus(code)
+    const res = await updateUserStatus(row.id, code)
     ElMessage.success(`已成功${statusText}用户：${row.username}`)
     loadUserList()
   } catch (error) {

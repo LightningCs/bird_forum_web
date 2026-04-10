@@ -44,21 +44,21 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="title" label="标题" min-width="160" show-overflow-tooltip />
 
         <el-table-column label="内容" min-width="280" show-overflow-tooltip>
           <template #default="scope">
-            <span class="content-preview">{{ scope.row.context }}</span>
+            <span class="content-preview" v-html="scope.row.context"></span>
           </template>
         </el-table-column>
 
         <el-table-column prop="createBy" label="创建者" width="120" align="center" />
         <el-table-column prop="createTime" label="创建时间" width="160" align="center" sortable />
 
-        <el-table-column label="操作" width="220" align="center" fixed="right">
+        <el-table-column label="操作" width="260" align="center" fixed="right">
           <template #default="scope">
             <el-button type="primary" link :icon="Edit" @click="openDialog(scope.row)">编辑</el-button>
-            <el-button type="warning" link :icon="RefreshLeft" @click="handleRevoke(scope.row)">撤回</el-button>
+            <el-button type="warning" link :icon="RefreshLeft" @click="handleRevoke(scope.row)">{{ scope.row.receiverId === 0 ? '撤回' : '取消撤回' }}</el-button>
             <el-button type="danger" link :icon="Delete" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
@@ -126,7 +126,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete, RefreshLeft } from '@element-plus/icons-vue'
-import { getNoticeList, addNotice, revokeNotice, deleteNotice } from '@/api/notice'
+import { getNoticeList, addNotice, revokeNotice, deleteNotice, editNotice } from '@/api/notice'
 
 // ================== 类型标签映射 ==================
 const typeTagMap: Record<string, { tagType: string }> = {
@@ -254,12 +254,21 @@ const handleSubmit = async () => {
   await dialogFormRef.value?.validate()
   submitLoading.value = true
   try {
-    const data = {
-      title: dialogForm.title,
-      type: dialogForm.type,
-      context: dialogForm.context
+    if (dialogMode.value === 'add') {
+      const res = await addNotice({
+        title: dialogForm.title,
+        type: dialogForm.type,
+        context: dialogForm.context
+      })
+    } else {
+      const res = await editNotice({
+        id: dialogForm.id,
+        title: dialogForm.title,
+        type: dialogForm.type,
+        context: dialogForm.context
+      })
     }
-    const res = await addNotice(data)
+
     ElMessage.success(dialogMode.value === 'add' ? '发布成功' : '保存成功')
     dialogVisible.value = false
     loadNoticeList()
@@ -279,7 +288,7 @@ const handleRevoke = (row: any) => {
     type: 'warning'
   }).then(async () => {
     try {
-      const res = await revokeNotice(row.id)
+      const res = await revokeNotice(row.id, row.receiverId === 0)
       ElMessage.success('通知已撤回')
       loadNoticeList()
     } catch {

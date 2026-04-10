@@ -110,12 +110,12 @@
       :close-on-click-modal="false"
       @closed="resetDialogForm"
     >
-      <el-form :model="dialogForm" :rules="dialogRules" ref="dialogFormRef" label-width="90px">
+      <el-form :model="dialogForm" :rules="dialogMode === 'add' ? addRules : editRules" ref="dialogFormRef" label-width="90px">
         <el-form-item label="姓名" prop="name">
           <el-input v-model="dialogForm.name" placeholder="请输入管理员姓名" />
         </el-form-item>
         <el-form-item label="账号" prop="account">
-          <el-input v-model="dialogForm.account" placeholder="请输入管理员账号" />
+          <el-input v-model="dialogForm.account" placeholder="请输入管理员账号" :disabled="dialogMode === 'edit'" />
         </el-form-item>
         <el-form-item label="密码" prop="password" v-if="dialogMode === 'add'">
           <el-input v-model="dialogForm.password" type="password" placeholder="请输入密码" show-password />
@@ -174,12 +174,20 @@ const dialogForm = reactive({
   status: '启用'
 })
 
-const dialogRules: any = {
+const addRules: any = {
   name:     [{ required: true, message: '请输入姓名', trigger: 'blur' }],
   account:  [{ required: true, message: '请输入账号', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }, { min: 6, message: '密码至少6位', trigger: 'blur' }],
   identity: [{ required: true, message: '请选择身份', trigger: 'change' }],
   status:   [{ required: true, message: '请选择状态', trigger: 'change' }]
+}
+
+const editRules: any = {
+  name:     [{ required: false, message: '请输入姓名', trigger: 'blur' }],
+  account:  [{ required: false, message: '请输入账号', trigger: 'blur' }],
+  password: [{ required: false, message: '请输入密码', trigger: 'blur' }, { min: 6, message: '密码至少6位', trigger: 'blur' }],
+  identity: [{ required: false, message: '请选择身份', trigger: 'change' }],
+  status:   [{ required: false, message: '请选择状态', trigger: 'change' }]
 }
 
 // ================== 后端API调用 ==================
@@ -272,13 +280,9 @@ const handleSubmit = async () => {
         status: dialogForm.status
       }
       const res = await addManager(data)
-      if (res.code === 200) {
-        ElMessage.success('新增成功')
-        dialogVisible.value = false
-        loadManagerList()
-      } else {
-        ElMessage.error(res.message || '新增失败')
-      }
+      ElMessage.success('新增成功')
+      dialogVisible.value = false
+      loadManagerList()
     } else {
       // 编辑模式，先获取完整信息
       const detailRes = await getManagerById(dialogForm.id!)
@@ -335,12 +339,8 @@ const handleDelete = (row: any) => {
   }).then(async () => {
     try {
       const res = await deleteManager(row.id)
-      if (res.code === 200) {
-        ElMessage.success('删除成功')
-        loadManagerList()
-      } else {
-        ElMessage.error(res.message || '删除失败')
-      }
+      ElMessage.success('删除成功')
+      loadManagerList()
     } catch (error) {
       ElMessage.error('删除失败')
     }

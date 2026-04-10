@@ -77,7 +77,7 @@
           
           <!-- 发布评论框 -->
           <div class="comment-input-area" id="comment-input-box">
-            <img :src=article.avatar alt="我的头像" class="my-avatar" />
+            <img :src=curUser.avatar alt="我的头像" class="my-avatar" />
             <div class="input-box">
               <!-- 回复提示条 -->
               <div class="reply-tip" v-if="replyState.active">
@@ -236,6 +236,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const paperId = route.params.id
+const curUser = ref({})
 
 // ================== 文章核心数据 ==================
 const article = ref({
@@ -258,12 +259,13 @@ watch(
   async (newId) => {
     if (newId) {
       console.log(`加载新文章: ${newId}`)
-      article.value = await getArticleById(newId)
+      article.value = await getArticleById(userStore.userInfo?.id,newId)
       relatedArticles.value = await getHotArticleList()
       comments.value = await getCommentList({
         'articleId': newId,
         'status': '可见',
-        'pageNo': 0,
+        'isIllegal': 0,
+        'pageNo': 1,
         'pageSize': 10
       })
       await trackArticleView(Number(newId))
@@ -282,9 +284,11 @@ onMounted(async () => {
     userId: userStore.userInfo?.id,
     articleId: paperId,
     status: '可见',
-    pageNo: 0,
+    isIllegal: 0,
+    pageNo: 1,
     pageSize: 10
   })
+  curUser.value = userStore.userInfo || {}
 })
 
 const isLiked = ref(false)

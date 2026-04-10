@@ -26,9 +26,9 @@ export function getUserById(id) {
 }
 
 // 修改用户状态
-export function updateUserStatus(code) {
+export function updateUserStatus(userId, code) {
   return request({
-    url: '/user/status/' + code,
+    url: '/user/status/' + userId + '/' + code,
     method: 'put'
   })
 }

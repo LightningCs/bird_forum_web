@@ -67,14 +67,14 @@
             <div class="friend-right">
               <!-- 关注/互关按钮 -->
               <el-button 
-                :type="!friend.isFollowed ? 'default' : 'primary'" 
+                :type="friend.isFollowed ? 'default' : 'primary'" 
                 :plain="!friend.isFollowed"
                 class="action-btn follow-btn"
                 @click="toggleFollow(friend)"
               >
                 <el-icon v-if="!friend.isFollowed"><Switch /></el-icon>
                 <el-icon v-else><Check /></el-icon>
-                {{ !friend.isFollowed ? '已关注' : '互相关注' }}
+                {{ !friend.isFollowed ? '取消关注' : '关注' }}
               </el-button>
               
               <!-- 聊天按钮 -->
@@ -108,8 +108,11 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getFriendList } from '@/api/index'
 import { Search, ArrowLeft, Message, Check, Switch, ChatDotRound } from '@element-plus/icons-vue'
+import { follow, unfollow } from '@/api/follow'
+import { useUserStore } from '@/stores/user.ts'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 // ================== 模拟好友数据 ==================
 const friendsList = ref([])
@@ -132,13 +135,15 @@ const filteredFriends = computed(() => {
 const toggleFollow = (friend: any) => {
   if (!friend.isFollowed) {
     // 如果是互关，点击变成单向关注 (取消了我的关注)
-    ElMessage.info(`已取消关注 ${friend.name}`)
+    ElMessage.info(`已取消关注 ${friend.username}`)
     // 实际项目中应该是调接口删除好友关系，这里简单模拟状态变化
-    friend.isFollowed = false
+    unfollow(userStore.userInfo?.id, friend.id)
+    friend.isFollowed = true
   } else {
     // 重新关注
     ElMessage.success(`关注成功！`)
-    friend.isFollowed = true 
+    follow(userStore.userInfo?.id, friend.id)
+    friend.isFollowed = false 
   }
 }
 

@@ -25,13 +25,25 @@ export function batchHideComments(ids) {
   })
 }
 
+// 批量隐藏评论
+export function hideComments(id, status) {
+  return request({
+    url: '/comment/hidden',
+    method: 'put',
+    params: {
+      id: id,
+      status: status
+    }
+  })
+}
+
 // 更改评论违规状态
-export function updateCommentIllegal(comment, isIllegal) {
+export function updateCommentIllegal(commentId, isIllegal) {
   return request({
     url: '/comment/illegal',
     method: 'put',
     params: {
-      comment: comment,
+      commentId: commentId,
       isIllegal: isIllegal
     }
   })

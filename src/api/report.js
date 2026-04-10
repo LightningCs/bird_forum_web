@@ -20,7 +20,7 @@ export function getReportList(params) {
 // 根据ID查询举报详情
 export function getReportById(id) {
   return request({
-    url: '/report/' + id,
+    url: '/report?id=' + id,
     method: 'get'
   })
 }
@@ -28,9 +28,8 @@ export function getReportById(id) {
 // 人工审核举报
 export function manualReviewReport(id, yes) {
   return request({
-    url: '/report/' + id,
-    method: 'post',
-    data: { yes }
+    url: '/report/' + id + '?yes=' + yes,
+    method: 'post'
   })
 }
 

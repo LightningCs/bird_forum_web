@@ -72,7 +72,7 @@
         </div>
         <div class="header-right">
           <el-avatar size="small" src="https://via.placeholder.com/40x40/1a73e8/ffffff?text=Admin" style="margin-right: 10px;" />
-          <span class="admin-name">超级管理员</span>
+          <span class="admin-name">admin</span>
           <el-button type="danger" link style="margin-left: 20px;" @click="logout">退出登录</el-button>
         </div>
       </el-header>

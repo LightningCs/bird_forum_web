@@ -18,10 +18,19 @@ export function addNotice(data) {
   })
 }
 
-// 撤回通知
-export function revokeNotice(id) {
+// 发布通知
+export function editNotice(data) {
   return request({
-    url: '/notice/' + id,
+    url: '/notice',
+    method: 'put',
+    data
+  })
+}
+
+// 撤回通知
+export function revokeNotice(id, isCancel) {
+  return request({
+    url: '/notice/' + id + '/' + isCancel,
     method: 'post'
   })
 }

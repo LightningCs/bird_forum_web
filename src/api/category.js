@@ -18,6 +18,15 @@ export function updateCategory(data) {
   })
 }
 
+// 更新分类
+export function saveCategory(data) {
+  return request({
+    url: '/category',
+    method: 'post',
+    data: data
+  })
+}
+
 // 批量删除分类
 export function batchDeleteCategories(ids) {
   return request({

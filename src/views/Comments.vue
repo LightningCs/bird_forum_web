@@ -47,7 +47,7 @@
 
       <!-- 表格操作栏 -->
       <div class="table-header-actions">
-        <el-button type="danger" :icon="Delete" plain :disabled="selectedRows.length === 0" @click="handleBatchDelete">批量删除了</el-button>
+        <el-button type="danger" :icon="Delete" plain :disabled="selectedRows.length === 0" @click="handleBatchDelete">批量删除</el-button>
         <el-button type="warning" :icon="Hide" plain :disabled="selectedRows.length === 0" @click="handleBatchHide">批量隐藏</el-button>
       </div>
 
@@ -157,7 +157,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { Search, Refresh, Hide, Delete, View, Check, Close } from '@element-plus/icons-vue'
-import { getCommentList, batchHideComments, updateCommentIllegal, batchDeleteComments, deleteComment } from '@/api/comment'
+import { getCommentList, batchHideComments, updateCommentIllegal, batchDeleteComments, deleteComment, hideComments } from '@/api/comment'
 
 const router = useRouter()
 
@@ -264,12 +264,8 @@ const handleUpdateIllegal = async (row: any, isIllegal: number) => {
   }).then(async () => {
     try {
       const res = await updateCommentIllegal(row.id, isIllegal)
-      if (res.code === 200) {
-        ElMessage.success(`评论已标记为${statusText}`)
-        loadCommentList()
-      } else {
-        ElMessage.error(res.message || '操作失败')
-      }
+      ElMessage.success(`评论已标记为${statusText}`)
+      loadCommentList()
     } catch (error) {
       ElMessage.error('操作失败')
     }
@@ -283,6 +279,7 @@ const handleHide = (row: any) => {
     type: 'warning'
   }).then(() => {
     row.status = '不可见'
+    hideComments(row.id, '不可见')
     ElMessage.success('评论已隐藏')
   }).catch(() => {})
 }
@@ -294,6 +291,7 @@ const handleShow = (row: any) => {
     type: 'info'
   }).then(() => {
     row.status = '可见'
+    hideComments(row.id, '可见')
     ElMessage.success('评论已恢复可见')
   }).catch(() => {})
 }
@@ -306,12 +304,8 @@ const handleDelete = (row: any) => {
   }).then(async () => {
     try {
       const res = await deleteComment(row.id)
-      if (res.code === 200) {
-        ElMessage.success('删除成功')
-        loadCommentList()
-      } else {
-        ElMessage.error(res.message || '删除失败')
-      }
+      ElMessage.success('删除成功')
+      loadCommentList()
     } catch (error) {
       ElMessage.error('删除失败')
     }
@@ -329,12 +323,8 @@ const handleBatchDelete = () => {
     const ids = selectedRows.value.map(r => r.id)
     try {
       const res = await batchDeleteComments(ids)
-      if (res.code === 200) {
-        ElMessage.success(`已删除 ${ids.length} 条评论`)
-        loadCommentList()
-      } else {
-        ElMessage.error(res.message || '批量删除失败')
-      }
+      ElMessage.success(`已删除 ${ids.length} 条评论`)
+      loadCommentList()
     } catch (error) {
       ElMessage.error('批量删除失败')
     }
@@ -350,12 +340,8 @@ const handleBatchHide = () => {
     const ids = selectedRows.value.map(r => r.id)
     try {
       const res = await batchHideComments(ids)
-      if (res.code === 200) {
-        ElMessage.success(`已隐藏 ${ids.length} 条评论`)
-        loadCommentList()
-      } else {
-        ElMessage.error(res.message || '批量隐藏失败')
-      }
+      ElMessage.success(`已隐藏 ${ids.length} 条评论`)
+      loadCommentList()
     } catch (error) {
       ElMessage.error('批量隐藏失败')
     }

@@ -21,27 +21,31 @@
             <div class="user-name-row">
               <h2 class="username">{{ userInfo.username }}</h2>
               <!-- 性别图标显示逻辑 -->
-              <el-icon v-if="userInfo.sex === '男'" class="gender-icon male"><Male /></el-icon>
-              <el-icon v-else-if="userInfo.sex === '女'" class="gender-icon female"><Female /></el-icon>
-              <el-tag v-else size="small" type="info" class="gender-tag">保密</el-tag>
+              <div v-if="userInfo.username !== '用户已注销'">
+                <el-icon v-if="userInfo.sex === '男'" class="gender-icon male"><Male /></el-icon>
+                <el-icon v-else-if="userInfo.sex === '女'" class="gender-icon female"><Female /></el-icon>
+                <el-tag v-else size="small" type="info" class="gender-tag">保密</el-tag>
+              </div>
             </div>
             
-            <div class="user-meta">
-              <span><el-icon><Message /></el-icon> {{ userInfo.account }}</span>
-              <span class="divider">|</span>
-              <span><el-icon><Calendar /></el-icon> 加入于 {{ userInfo.createTime }}</span>
-              <span class="divider">|</span>
-              <span class="followers-count"><strong>{{ userInfo.fansCount }}</strong> 粉丝</span>
-            </div>
+            <div v-if="userInfo.username !== '用户已注销'">
+              <div class="user-meta">
+                <span><el-icon><Message /></el-icon> {{ userInfo.account }}</span>
+                <span class="divider">|</span>
+                <span><el-icon><Calendar /></el-icon> 加入于 {{ userInfo.createTime }}</span>
+                <span class="divider">|</span>
+                <span class="followers-count"><strong>{{ userInfo.fansCount }}</strong> 粉丝</span>
+              </div>
 
-            <div class="user-bio">
-              <span class="bio-label">留言：</span>
-              <span class="bio-text">{{ userInfo.message || '这个人很懒，什么都没有留下~' }}</span>
+              <div class="user-bio">
+                <span class="bio-label">留言：</span>
+                <span class="bio-text">{{ userInfo.message || '这个人很懒，什么都没有留下~' }}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="profile-right" v-if="Number(route.params.id) !== userStore.userInfo?.id">
+        <div class="profile-right" v-if="Number(route.params.id) !== userStore.userInfo?.id && userInfo.username !== '用户已注销'">
           <!-- 关注按钮交互 -->
           <el-button 
             :type="userInfo.isFollowed ? 'default' : 'primary'" 
