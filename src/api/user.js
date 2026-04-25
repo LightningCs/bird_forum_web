@@ -18,9 +18,9 @@ export function getUserList(params) {
 }
 
 // 根据ID获取用户详细信息
-export function getUserById(id) {
+export function getUserById(id, currentUserId) {
   return request({
-    url: '/user/' + id,
+    url: '/user/' + id + '/' + currentUserId,
     method: 'get'
   })
 }

@@ -121,10 +121,12 @@ import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getFriendList, getChatMessages, saveMessage, getUserById } from '@/api/index'
 import { ArrowLeft, Search, Picture, Folder, Microphone, ChatDotRound } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user.ts'
 
 
 const router = useRouter()
 const goHome = () => router.push('/')
+const userStore = useUserStore()
 
 // ================== 基础数据定义 ==================
 const currentUser = ref({
@@ -155,7 +157,7 @@ const inputText = ref('')
 const messageListRef = ref<HTMLElement | null>(null)
 
 onMounted(async () => {
-  currentUser.value = await getUserById(1)
+  currentUser.value = await getUserById(userStore.userInfo?.id || 1, userStore.userInfo?.id || 1)
   friends.value = await getFriendList(currentUser.value.id, false)
 })
 

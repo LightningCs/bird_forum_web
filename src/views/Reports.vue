@@ -36,9 +36,9 @@
     <!-- ================== 列表卡片 ================== -->
     <el-card shadow="never" class="table-card">
       <el-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
-        <el-table-column prop="id" label="ID" width="90" align="center" />
+        <el-table-column prop="num" label="序号" width="90" align="center" />
         <el-table-column prop="reporterName" label="举报者" width="110" align="center" />
-        <el-table-column prop="context" label="举报原因" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="reason" label="举报原因" min-width="160" show-overflow-tooltip />
 
         <el-table-column label="目标类型" width="100" align="center">
           <template #default="scope">
@@ -50,12 +50,20 @@
         </el-table-column>
 
         <el-table-column prop="targetId" label="目标ID" width="90" align="center" />
-        <el-table-column prop="remark" label="原因描述" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="context" label="原因描述" min-width="200" show-overflow-tooltip />
 
         <el-table-column label="状态" width="100" align="center">
           <template #default="scope">
             <el-tag v-if="scope.row.status === '已处理'" type="success">已处理</el-tag>
             <el-tag v-else type="danger" effect="plain">未处理</el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="结果" width="100" align="center">
+          <template #default="scope">
+            <el-tag v-if="scope.row.result === null">无</el-tag>
+            <el-tag v-else-if="scope.row.result === 0" type="success">不违规</el-tag>
+            <el-tag v-else type="danger" effect="plain">违规</el-tag>
           </template>
         </el-table-column>
 
@@ -109,10 +117,10 @@
         <el-descriptions :column="2" border size="small" class="review-desc">
           <el-descriptions-item label="举报ID">{{ currentRow.id }}</el-descriptions-item>
           <el-descriptions-item label="举报者">{{ currentRow.reporterName }}</el-descriptions-item>
-          <el-descriptions-item label="举报内容" :span="2">{{ currentRow.context }}</el-descriptions-item>
+          <el-descriptions-item label="举报原因" :span="2">{{ currentRow.reason }}</el-descriptions-item>
           <el-descriptions-item label="目标类型">{{ currentRow.targetType }}</el-descriptions-item>
           <el-descriptions-item label="目标ID">{{ currentRow.targetId }}</el-descriptions-item>
-          <el-descriptions-item label="原因描述" :span="2">{{ currentRow.remark || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="原因描述" :span="2">{{ currentRow.context || '—' }}</el-descriptions-item>
           <el-descriptions-item label="举报时间" :span="2">{{ currentRow.createTime }}</el-descriptions-item>
         </el-descriptions>
 
@@ -194,6 +202,12 @@ const loadReportList = async () => {
     if (searchForm.status) params.status = searchForm.status
 
     const res = await getReportList(params)
+
+    for (let i = 0; i < res.length; i++) {
+      const element = res[i];
+      element.num = (pagination.currentPage - 1) * pagination.pageSize + i + 1;
+    }
+
     tableData.value = res || []
     pagination.total = res.length || 0
   } catch (error) {

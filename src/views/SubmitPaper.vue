@@ -120,9 +120,8 @@ const categories = ref([])
 // 挂载时
 onMounted(async () => {
     categories.value = await getCategoryList({
-    'pageNo': 0,
-    'pageSize': 1,
-    'pageNum': 500
+    'pageNo': 1,
+    'pageSize': 100
   })
 })
 

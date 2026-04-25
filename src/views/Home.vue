@@ -96,7 +96,7 @@
                 </div>
               </div>
               <div class="paper-title">{{ paper.title }}</div>
-              <div class="paper-summary">{{ paper.summary }}</div>
+              <div class="paper-summary" v-html="paper.context"></div>
               <div class="paper-meta">
                 <span>•</span>
                 <span>{{ paper.createTime }}</span>

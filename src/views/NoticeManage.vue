@@ -13,10 +13,10 @@
 
         <el-form-item label="通知类型" prop="type">
           <el-select v-model="searchForm.type" placeholder="请选择类型" clearable style="width: 150px;">
-            <el-option label="系统公告" value="系统公告" />
+            <el-option label="系统通知" value="系统通知" />
             <el-option label="活动通知" value="活动通知" />
             <el-option label="安全提醒" value="安全提醒" />
-            <el-option label="功能更新" value="功能更新" />
+            <el-option label="功能上线" value="功能上线" />
           </el-select>
         </el-form-item>
 
@@ -34,7 +34,7 @@
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe style="width: 100%">
-        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column prop="num" label="序号" width="80" align="center" />
 
         <el-table-column label="通知类型" width="120" align="center">
           <template #default="scope">
@@ -93,10 +93,10 @@
 
         <el-form-item label="通知类型" prop="type">
           <el-select v-model="dialogForm.type" placeholder="请选择通知类型" style="width: 100%;">
-            <el-option label="系统公告" value="系统公告" />
+            <el-option label="系统通知" value="系统通知" />
             <el-option label="活动通知" value="活动通知" />
             <el-option label="安全提醒" value="安全提醒" />
-            <el-option label="功能更新" value="功能更新" />
+            <el-option label="功能上线" value="功能上线" />
           </el-select>
         </el-form-item>
 
@@ -130,10 +130,10 @@ import { getNoticeList, addNotice, revokeNotice, deleteNotice, editNotice } from
 
 // ================== 类型标签映射 ==================
 const typeTagMap: Record<string, { tagType: string }> = {
-  '系统公告': { tagType: 'primary' },
+  '系统通知': { tagType: 'primary' },
   '活动通知': { tagType: 'success' },
   '安全提醒': { tagType: 'danger' },
-  '功能更新': { tagType: 'warning' }
+  '功能上线': { tagType: 'warning' }
 }
 
 // ================== 状态定义 ==================
@@ -186,6 +186,12 @@ const loadNoticeList = async () => {
     if (searchForm.type) params.type = searchForm.type
 
     const res = await getNoticeList(params)
+    
+    for (let i = 0; i < res.length; i++) {
+      const element = res[i];
+      element.num = (pagination.currentPage - 1) * pagination.pageSize + i + 1;
+    }
+
     tableData.value = res || []
     pagination.total = res.length || 0
   } catch {

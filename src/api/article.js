@@ -64,12 +64,12 @@ export function batchHideArticles(ids) {
 }
 
 //更改文章违规状态
-export function updateArticleIllegal(article, isIllegal) {
+export function updateArticleIllegal(articleId, isIllegal) {
   return request({
     url: '/article/illegal',
     method: 'put',
     params: {
-      article: article,
+      articleId: articleId,
       isIllegal: isIllegal
     }
   })

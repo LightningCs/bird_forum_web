@@ -37,7 +37,7 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column prop="num" label="序号" width="80" align="center" />
         <el-table-column prop="context" label="举报原因" min-width="280" show-overflow-tooltip />
         <el-table-column label="状态" width="100" align="center">
           <template #default="scope">
@@ -164,6 +164,12 @@ const loadReportReasonList = async () => {
     if (searchForm.status) params.status = searchForm.status
 
     const res = await getReportReasonList(params)
+
+    for (let i = 0; i < res.length; i++) {
+      const element = res[i]
+      element.num = (pagination.currentPage - 1) * pagination.pageSize + i + 1
+    }
+
     tableData.value = res || []
     pagination.total = res.length || 0
   } catch (error) {

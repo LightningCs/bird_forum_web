@@ -153,7 +153,7 @@
         </el-form-item>
         <el-form-item label="举报原因" prop="reasonId">
           <el-select v-model="reportForm.reasonId" placeholder="请选择举报原因" style="width: 100%;">
-            <el-option v-for="r in reportReasons" :key="r.id" :label="r.id" :value="r.context" />
+            <el-option v-for="r in reportReasons" :key="r.id" :label="r.context" :value="r.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="补充描述" prop="description">
@@ -182,6 +182,7 @@ import { ElMessage } from 'element-plus'
 import { getUserById, getUserPublishArticleList, getUserCollectArticleList, submitReport, getReportReasonList } from '@/api/index'
 import { useUserStore } from '@/stores/user.ts'
 import { Pointer, Male, Female, View, Message, Calendar, Search, Bell, Warning } from '@element-plus/icons-vue'
+import { follow, unfollow } from '@/api/follow.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -213,9 +214,15 @@ const toggleFollow = () => {
   userInfo.value.isFollowed = !userInfo.value.isFollowed
   if (userInfo.value.isFollowed) {
     userInfo.value.fansCount++
+
+    follow(userStore.userInfo?.id || 1, userInfo.value.id)
+
     ElMessage.success(`关注了 ${userInfo.value.username}`)
   } else {
     userInfo.value.fansCount--
+
+    unfollow(userStore.userInfo?.id || 1, userInfo.value.id)
+
     ElMessage.info('已取消关注')
   }
 }
@@ -242,7 +249,7 @@ onMounted(async () => {
   if (targetUserId) {
     console.log(`正在获取用户 ID: ${targetUserId} 的主页数据...`)
     // 这里可以结合 axios 获取真实数据
-    userInfo.value = await getUserById(targetUserId)
+    userInfo.value = await getUserById(targetUserId, userStore.userInfo?.id || 1)
     // 获取用户发布的文章列表
     userArticles.value = await getUserPublishArticleList(targetUserId)
     // 获取用户收藏的文章列表

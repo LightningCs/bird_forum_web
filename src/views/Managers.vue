@@ -41,7 +41,7 @@
         stripe
         style="width: 100%"
       >
-        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column prop="num" label="序号" width="80" align="center" />
 
         <!-- 管理员信息 -->
         <el-table-column label="管理员信息" min-width="200">
@@ -204,7 +204,14 @@ const loadManagerList = async () => {
     if (searchForm.identity !== '') params.identity = searchForm.identity
     if (searchForm.status) params.status = searchForm.status
 
-    tableData.value = await getManagerList(params)
+    const res = await getManagerList(params)
+
+    for (let i = 0; i < res.length; i++) {
+      const element = res[i]
+      element.num = (pagination.currentPage - 1) * pagination.pageSize + i + 1
+    }
+    
+    tableData.value = res
   } catch (error) {
     ElMessage.error('获取管理员列表失败')
   } finally {

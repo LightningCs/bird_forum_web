@@ -122,7 +122,7 @@
                     >
                       <el-icon><Pointer /></el-icon> {{ comment.likeNum > 0 ? comment.likeNum : '点赞' }}
                     </span>
-                    <span class="action-item" @click="handleReply(comment.id, comment.userName, comment.parentId, comment.commentUserId)">
+                    <span class="action-item" @click="handleReply(comment.id, comment.userName, comment.id, comment.commentUserId)">
                       <el-icon><ChatDotRound /></el-icon> 回复
                     </span>
                     <span class="action-item report-action" @click="openReport('评论', comment.id, comment.context)">
@@ -154,7 +154,7 @@
                             <el-icon><Pointer /></el-icon> {{ reply.likeNum > 0 ? reply.likeNum : '点赞' }}
                           </span>
                           <!-- 注意：子回复也是回复到它所在的这棵“树”(根评论)下 -->
-                          <span class="action-item" @click="handleReply(reply.rootId, reply.replyUserName, reply.parentId, comment.id)">
+                          <span class="action-item" @click="handleReply(reply.rootId, reply.replyUserName, reply.id, comment.id)">
                             <el-icon><ChatDotRound /></el-icon> 回复
                           </span>
                           <span class="action-item report-action" @click="openReport('评论', reply.id, reply.context)">
@@ -351,6 +351,9 @@ const handleReply = (rootCommentId: number, targetName: string, parentId: number
     parentId,
     targetId
   }
+
+  console.log('进入回复状态:', replyState.value)
+
   // 让页面滚动到输入框位置并聚焦
   const inputBox = document.getElementById('comment-input-box')
   if (inputBox) {
@@ -387,7 +390,7 @@ const trackArticleView = async (articleId: number) => {
 
 
 // 提交评论/回复
-const submitComment = () => {
+const submitComment = async () => {
   if (!replyState.value.context.trim()) {
     ElMessage.warning('内容不能为空')
     return
@@ -402,7 +405,8 @@ const submitComment = () => {
     parentId: 0,
     status: '可见',
     likeNum: 0,
-    createTime: '2025-04-02 09:15',
+    targetId: replyState.value.targetId,
+    createTime: new Date().toISOString().slice(0, 16).replace('T', ' '),
     userName: userStore.userInfo?.username || '匿名用户',
     avatar: userStore.userInfo?.avatar || '',
     isLike: false,
@@ -411,37 +415,55 @@ const submitComment = () => {
     replyAvatar: userStore.userInfo?.avatar || '',
     children: []
   }
+  
+  newObj.articleId = article.value.id
 
   if (replyState.value.active) {
     // 逻辑：追加到对应的子回复数组中
     newObj.replyUserName = replyState.value.targetName
     newObj.replyUserId = replyState.value.targetId
-    
-    const targetRootComment = comments.value.find(c => c.id === replyState.value.rootCommentId)
-    if (targetRootComment) {
-      if (!targetRootComment.children) targetRootComment.children =[]
-      targetRootComment.children.push(newObj)
-    }
     newObj.rootId = replyState.value.rootCommentId
     newObj.parentId = replyState.value.parentId
-    cancelReply() // 发布后取消回复状态
-    ElMessage.success('回复成功')
   } else {
     // 逻辑：作为一条新的主评论发布
     newObj.rootId = 0
     newObj.parentId = 0
-    comments.value.unshift(newObj)
-    ElMessage.success('评论发布成功')
   }
-  addComment({
+
+  const id = await addComment({
     context: newObj.context,
     articleId: newObj.articleId,
     commentUserId: userStore.userInfo?.id,
+    targetId: newObj.targetId,
     rootId: newObj.rootId,
     parentId: newObj.parentId
   })
+  const now = new Date();
+  const time = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
   
-  newComment.value = ''
+  newObj.id = id
+  newObj.createTime = time
+
+  // 新增到数组
+  if (replyState.value.active) {
+    console.log('将回复添加到评论树中:', newObj)
+    const targetRootComment = comments.value.find(c => c.id === replyState.value.rootCommentId)
+
+    if (targetRootComment) {
+        if (!targetRootComment.children) targetRootComment.children =[]
+        targetRootComment.children.push(newObj)
+    }
+
+    cancelReply() // 发布后取消回复状态
+    ElMessage.success('回复成功')
+  } else {
+    console.log('将新评论添加到评论列表顶部:', newObj)
+    comments.value.unshift(newObj)
+
+    ElMessage.success('评论发布成功')
+  }
+  
+  replyState.value.context = ''
 }
 
 // 模拟评论初始数据（新增了作者ID和isLiked字段）

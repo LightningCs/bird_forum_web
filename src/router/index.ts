@@ -22,7 +22,7 @@ const routes = [
     path: '/',
     name: 'Home',
     component: Home,
-    meta: { title: '毕业论文系统 - 首页', requiresAuth: false }
+    meta: { title: '小鸟论坛 - 首页', requiresAuth: false }
   },
   {
     path: '/login',
@@ -162,7 +162,7 @@ router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
   
   // 设置页面标题
-  document.title = (to.meta.title as string) || '毕业论文系统'
+  document.title = (to.meta.title as string) || '小鸟论坛'
   
   // 检查路由是否需要认证
   const requiresAuth = to.meta.requiresAuth as boolean

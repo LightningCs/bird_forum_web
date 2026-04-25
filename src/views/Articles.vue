@@ -73,7 +73,7 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column prop="num" label="序号" width="80" align="center" />
         
         <el-table-column label="文章信息" min-width="300">
           <template #default="scope">
@@ -185,7 +185,7 @@ const searchForm = reactive({
   publisherName: '',
   category: '',
   violationStatus: '', // 0: 不违规, 1: 违规
-  status: ''         // 0: 草稿, 1: 已发布, 2: 不可见
+  status: ''         // 草稿, 已发布, 不可见
 })
 
 // 分页数据
@@ -219,8 +219,14 @@ const loadArticleList = async () => {
     if (searchForm.status !== '') params.status = searchForm.status
 
     const res = await getArticleList(params)
-      tableData.value = res || []
-      pagination.total = res.length
+
+    for (let i = 0; i < res.length; i++) {
+      const element = res[i]
+      element.num = (pagination.currentPage - 1) * pagination.pageSize + i + 1
+    }
+
+    tableData.value = res || []
+    pagination.total = res.length
   } catch (error) {
     ElMessage.error('获取文章列表失败')
   } finally {

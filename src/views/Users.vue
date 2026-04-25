@@ -26,7 +26,7 @@
         <el-form-item label="用户状态" prop="status">
           <el-select v-model="searchForm.status" placeholder="请选择状态" clearable style="width: 120px;">
             <el-option label="启用" value="启用" />
-            <el-option label="禁用" value="禁用" />
+            <el-option label="封禁" value="封禁" />
           </el-select>
         </el-form-item>
 
@@ -56,7 +56,7 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column prop="num" label="序号" width="80" align="center" />
         
         <el-table-column label="用户头像" width="100" align="center">
           <template #default="scope">
@@ -79,11 +79,11 @@
 
         <el-table-column label="用户状态" width="100" align="center">
           <template #default="scope">
-            <!-- switch 开关直接控制启用/禁用 -->
+            <!-- switch 开关直接控制启用/封禁 -->
             <el-switch
               v-model="scope.row.status"
               active-value="启用"
-              inactive-value="禁用"
+              inactive-value="封禁"
               active-color="#13ce66"
               inactive-color="#ff4949"
               @click="() => handleStatusChange(scope.row, scope.row.status)"
@@ -139,12 +139,14 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Delete, View } from '@element-plus/icons-vue'
 import { getUserList, getUserById, updateUserStatus, batchDeleteUsers } from '@/api/user'
+import { useUserStore } from '@/stores/user.ts'
 
 // ================== 状态定义 ==================
 const loading = ref(false)
 const searchFormRef = ref()
 const detailDialogVisible = ref(false)
 const userDetail = ref<any>(null)
+const userStore = useUserStore()
 
 // 搜索表单数据
 const searchForm = reactive({
@@ -183,6 +185,12 @@ const loadUserList = async () => {
     if (searchForm.status) params.status = searchForm.status
 
     const res = await getUserList(params)
+
+    for (let i = 0; i < res.length; i++) {
+      const element = res[i]
+      element.num = (pagination.currentPage - 1) * pagination.pageSize + i + 1
+    }
+
     tableData.value = res
     pagination.total = res.length // 假设后端返回的列表长度即为总数，实际项目中可能需要单独的 total 字段
   } catch (error) {
@@ -220,8 +228,8 @@ const handleSelectionChange = (val: any[]) => {
 
 // 切换用户状态
 const handleStatusChange = async (row: any, val: string) => {
-  const statusText = val === '启用' ? '启用' : '禁用'
-  const code = val === '启用' ? 0 : 1 // 0-启用, 1-禁用
+  const statusText = val === '启用' ? '启用' : '封禁'
+  const code = val === '启用' ? 0 : 1 // 0-启用, 1-封禁
   
   try {
     const res = await updateUserStatus(row.id, code)
@@ -230,7 +238,7 @@ const handleStatusChange = async (row: any, val: string) => {
   } catch (error) {
     ElMessage.error(`${statusText}失败`)
     // 恢复开关状态
-    row.status = val === '启用' ? '禁用' : '启用'
+    row.status = val === '启用' ? '封禁' : '启用'
   }
 }
 
@@ -249,7 +257,7 @@ const handleCurrentChange = (val: number) => {
 // 查看用户详情
 const handleDetail = async (row: any) => {
   try {
-    const res = await getUserById(row.id)
+    const res = await getUserById(row.id, userStore.userInfo?.id || 1)
     userDetail.value = res
     detailDialogVisible.value = true
   } catch (error) {

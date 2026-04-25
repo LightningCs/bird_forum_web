@@ -81,7 +81,7 @@
                 </div>
               </div>
               <div class="paper-title" v-html="highlightKeyword(paper.title)"></div>
-              <div class="paper-summary">{{ paper.content }}</div>
+              <div class="paper-summary" v-html="paper.context"></div>
               <div class="paper-meta">
                 <span>•</span>
                 <span>{{ paper.createTime }}</span>
@@ -180,7 +180,6 @@ const highlightKeyword = (text: string) => {
 
 // 头部搜索框触发重新搜索
 const handleSearch = () => {
-  if (!searchInputValue.value.trim()) return
   // 使用路由跳转自身，触发 query 变化
   router.push({ path: '/search', query: { keyword: searchInputValue.value } })
 }

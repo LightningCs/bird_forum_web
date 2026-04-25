@@ -61,7 +61,7 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column prop="num" label="序号" width="80" align="center" />
 
         <!-- 评论内容：支持长文本截断和悬浮提示 -->
         <el-table-column label="评论内容" min-width="250" show-overflow-tooltip>
@@ -202,6 +202,12 @@ const loadCommentList = async () => {
     if (searchForm.isIllegal !== null) params.isIllegal = searchForm.isIllegal
 
     const res = await getCommentList(params)
+
+    for (let i = 0; i < res.length; i++) {
+      const element = res[i]
+      element.num = (pagination.currentPage - 1) * pagination.pageSize + i + 1
+    }
+
     tableData.value = res || []
     pagination.total = res.length || 0
   } catch (error) {
